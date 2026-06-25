@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inner Weather — Daily Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Nunito:wght@400;500;600;700;800&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --paper:#FBF6EE; --sky-1:#FFE3C4; --sky-2:#CDE7F0;
+    --sun:#F4A259; --sun-soft:#FBC687; --ink:#36404A; --ink-soft:#6B7682;
+    --lav:#B6A6D6; --mist:#EFF5F4; --care:#D98266; --care-bg:#FBEDE7;
+    --leaf:#79B591; --line:rgba(54,64,74,.12); --card:#FFFFFF;
+    --w-sunny:#F4A259; --w-rain:#7FB3D5; --w-heavy:#5784AE; --w-storm:#8779A8;
+    --shadow:0 10px 30px -12px rgba(54,64,74,.22); --radius:20px;
+    --font-display:"Fraunces",Georgia,serif;
+    --font-body:"Nunito","Zen Maru Gothic",system-ui,sans-serif;
+  }
+  html[data-lang="ja"]{ --font-body:"Zen Maru Gothic","Nunito",system-ui,sans-serif;
+                        --font-display:"Zen Maru Gothic","Nunito",system-ui,sans-serif; }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:var(--font-body); color:var(--ink);
+    background:radial-gradient(120% 60% at 50% -10%, var(--sky-1) 0%, transparent 55%),
+      radial-gradient(120% 70% at 90% 0%, var(--sky-2) 0%, transparent 45%), var(--paper);
+    background-attachment:fixed; line-height:1.55; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:900px; margin:0 auto; padding:22px 18px 80px}
+  .topbar{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px}
+  .brand{display:flex; align-items:center; gap:11px}
+  .sun-badge{width:40px; height:40px; flex:0 0 40px}
+  .sun-badge .ray{transform-origin:24px 24px; animation:spin 50s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media(prefers-reduced-motion:reduce){.sun-badge .ray{animation:none}}
+  .brand h1{font-family:var(--font-display); font-weight:600; font-size:1.25rem; margin:0}
+  .brand p{margin:0; font-size:.8rem; color:var(--ink-soft)}
+  .lang-toggle{display:flex; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px; box-shadow:var(--shadow)}
+  .lang-toggle button{border:0; background:transparent; font-family:var(--font-body); font-weight:700; font-size:.82rem; padding:6px 13px; border-radius:999px; cursor:pointer; color:var(--ink-soft)}
+  .lang-toggle button[aria-pressed="true"]{background:var(--ink); color:#fff}
+  .quote{background:linear-gradient(135deg,#fff 0%,#FFF7EE 100%); border:1px solid var(--line); border-radius:var(--radius); padding:26px 26px 22px; box-shadow:var(--shadow); margin-bottom:20px; position:relative; overflow:hidden}
+  .quote::before{content:""; position:absolute; right:-30px; top:-30px; width:140px; height:140px; border-radius:50%; background:radial-gradient(circle,var(--sun-soft),transparent 70%); opacity:.5}
+  .quote .eyebrow{font-size:.72rem; letter-spacing:.16em; text-transform:uppercase; color:var(--sun); font-weight:800; margin-bottom:8px}
+  .quote .greeting{font-family:var(--font-display); font-weight:600; font-size:1.15rem; color:var(--ink); margin-bottom:4px}
+  .quote blockquote{margin:0; font-family:var(--font-display); font-weight:500; font-size:1.5rem; line-height:1.35; max-width:42ch}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px; box-shadow:var(--shadow); margin-bottom:20px}
+  .card > h2{font-family:var(--font-display); font-weight:600; font-size:1.18rem; margin:0 0 4px}
+  .card > .sub{color:var(--ink-soft); font-size:.86rem; margin:0 0 18px}
+  .date-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .date-row input[type="date"]{font-family:var(--font-body); font-weight:700; font-size:1rem; color:var(--ink); border:1px solid var(--line); background:var(--mist); border-radius:12px; padding:8px 12px}
+  .field{margin-bottom:20px}
+  .field-label{display:block; font-weight:700; font-size:.92rem; margin-bottom:9px}
+  .hint{font-weight:500; color:var(--ink-soft); font-size:.8rem}
+  .mood-block{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  @media(max-width:620px){ .mood-block{grid-template-columns:1fr} }
+  .mood-slot{background:var(--mist); border-radius:16px; padding:12px}
+  .mood-slot > span{display:block; font-weight:700; font-size:.82rem; margin-bottom:9px; color:var(--ink-soft)}
+  .weather-row{display:flex; gap:6px}
+  .w-btn{flex:1; border:1.5px solid transparent; background:#fff; border-radius:12px; padding:8px 2px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; transition:transform .12s, border-color .12s, box-shadow .12s}
+  .w-btn:hover{transform:translateY(-2px)}
+  .w-btn svg{width:26px; height:26px}
+  .w-btn small{font-size:.62rem; font-weight:700; color:var(--ink-soft)}
+  .w-btn[aria-pressed="true"]{box-shadow:0 6px 16px -8px rgba(54,64,74,.4)}
+  .w-btn.sunny[aria-pressed="true"]{border-color:var(--w-sunny); background:#FFF4E7}
+  .w-btn.rain[aria-pressed="true"]{border-color:var(--w-rain); background:#EEF6FB}
+  .w-btn.heavyrain[aria-pressed="true"]{border-color:var(--w-heavy); background:#E9F1F8}
+  .w-btn.storm[aria-pressed="true"]{border-color:var(--w-storm); background:#F1EEF8}
+  /* time selects */
+  .time-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  @media(max-width:520px){ .time-grid{grid-template-columns:1fr} }
+  .time-pick label{display:block; font-size:.8rem; color:var(--ink-soft); font-weight:700; margin-bottom:6px}
+  .time-pick .sels{display:flex; align-items:center; gap:6px}
+  select{font-family:var(--font-body); font-weight:700; font-size:.95rem; color:var(--ink); border:1px solid var(--line); background:var(--mist); border-radius:12px; padding:10px 10px; cursor:pointer}
+  .time-pick .colon{font-weight:800; color:var(--ink-soft)}
+  .sleep-out{font-size:.82rem; color:var(--leaf); font-weight:800; margin-top:10px}
+  .meals{display:flex; gap:10px; flex-wrap:wrap}
+  .chk{display:flex; align-items:center; gap:8px; background:var(--mist); border:1px solid var(--line); border-radius:12px; padding:9px 13px; cursor:pointer; font-weight:600; font-size:.9rem; user-select:none}
+  .chk input{width:17px; height:17px; accent-color:var(--leaf)}
+  input[type="text"], textarea{width:100%; font-family:var(--font-body); font-size:.95rem; color:var(--ink); border:1px solid var(--line); background:var(--mist); border-radius:12px; padding:10px 12px; resize:vertical}
+  textarea{min-height:56px}
+  /* activities */
+  .act-row{background:var(--mist); border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:10px}
+  .act-top{display:flex; gap:8px; align-items:center}
+  .act-top input{flex:1; background:#fff}
+  .act-del{flex:0 0 auto; width:34px; height:34px; border:1px solid var(--line); background:#fff; border-radius:10px; cursor:pointer; color:var(--ink-soft); font-size:1rem; line-height:1}
+  .act-del:hover{color:var(--care); border-color:var(--care)}
+  .act-eval{display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; align-items:center}
+  .act-eval .lbl{font-size:.74rem; color:var(--ink-soft); font-weight:700; margin-right:2px}
+  .ev-btn{border:1.5px solid var(--line); background:#fff; border-radius:999px; padding:5px 12px; font-family:var(--font-body); font-weight:700; font-size:.78rem; cursor:pointer; color:var(--ink-soft)}
+  .ev-btn[aria-pressed="true"].good{border-color:var(--leaf); background:#EAF5EE; color:#3f7a59}
+  .ev-btn[aria-pressed="true"].ok{border-color:#C9B26b; background:#FBF4E2; color:#8a7320}
+  .ev-btn[aria-pressed="true"].hard{border-color:var(--care); background:var(--care-bg); color:var(--care)}
+  .act-note{margin-top:8px}
+  .act-note input{background:#fff; font-size:.88rem}
+  .add-act{display:inline-flex; align-items:center; gap:7px; border:1.5px dashed var(--line); background:transparent; color:var(--ink-soft); font-family:var(--font-body); font-weight:800; font-size:.88rem; border-radius:12px; padding:10px 16px; cursor:pointer}
+  .add-act:hover{border-color:var(--sun); color:var(--sun)}
+  .add-act .plus{font-size:1.15rem; line-height:1}
+  /* care collapsible */
+  .care-head{width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--care-bg); border:1px solid #EBC8BD; border-radius:16px; padding:13px 16px; cursor:pointer; font-family:var(--font-body)}
+  .care-head .title{display:flex; align-items:center; gap:9px; font-weight:800; font-size:.92rem; color:var(--care)}
+  .care-head .chev{transition:transform .2s; color:var(--care)}
+  .careblock.open .care-head{border-bottom-left-radius:0; border-bottom-right-radius:0}
+  .careblock.open .chev{transform:rotate(180deg)}
+  .care-body{display:none; background:var(--care-bg); border:1px solid #EBC8BD; border-top:0; border-radius:0 0 16px 16px; padding:14px 16px 16px}
+  .careblock.open .care-body{display:block; animation:fade .25s ease}
+  @keyframes fade{from{opacity:0; transform:translateY(-3px)}to{opacity:1}}
+  .care-opts{display:flex; flex-direction:column; gap:9px}
+  .care-opts .chk{background:#fff} .care-opts .chk input{accent-color:var(--care)}
+  .care-support{margin-top:14px; padding-top:14px; border-top:1px dashed #E0B6A9; display:none}
+  .care-support.show{display:block}
+  .care-support p{margin:0 0 10px; font-size:.9rem}
+  .reslist{display:flex; flex-direction:column; gap:7px}
+  .res{display:flex; gap:9px; align-items:baseline; font-size:.86rem; background:#fff; border:1px solid #EBC8BD; border-radius:10px; padding:9px 12px}
+  .res b{color:var(--care)}
+  .btn{font-family:var(--font-body); font-weight:800; font-size:.95rem; border:0; border-radius:999px; padding:12px 22px; cursor:pointer; transition:transform .12s}
+  .btn:hover{transform:translateY(-2px)}
+  .btn-primary{background:var(--ink); color:#fff; box-shadow:var(--shadow)}
+  .btn-soft{background:#fff; color:var(--ink); border:1px solid var(--line)}
+  .save-row{display:flex; flex-direction:column; align-items:center; gap:6px; margin-top:10px}
+  .lock{position:fixed; inset:0; z-index:9999; background:linear-gradient(160deg,#FFF7EE 0%,#F1ECF7 100%); display:flex; align-items:center; justify-content:center; padding:20px}
+  .lock.hide{display:none}
+  body.locked{overflow:hidden}
+  .lock-card{background:#fff; border:1px solid var(--line); border-radius:24px; box-shadow:var(--shadow); padding:38px 30px; max-width:340px; width:100%; text-align:center}
+  .lock-icon{font-size:2rem; margin-bottom:6px}
+  .lock-title{font-family:var(--font-display); font-weight:600; font-size:1.6rem; color:var(--ink); margin:0 0 4px}
+  .lock-sub{color:var(--ink-soft); font-size:.9rem; margin:0 0 18px}
+  .lock-input{width:100%; box-sizing:border-box; font-family:var(--font-body); font-size:1.4rem; text-align:center; letter-spacing:.35em; padding:12px; border:1px solid var(--line); border-radius:14px; background:var(--mist); margin-bottom:14px}
+  .lock-input:focus{outline:none; border-color:var(--sun); background:#fff}
+  .lock-btn{width:100%; font-family:var(--font-body); font-weight:800; font-size:1rem; color:#fff; background:var(--ink); border:none; border-radius:14px; padding:13px; cursor:pointer}
+  .lock-btn:hover{opacity:.92}
+  .lock-err{color:#C2553C; font-size:.85rem; font-weight:700; min-height:1.2em; margin:12px 0 0}
+  .saved-flag{color:var(--leaf); font-weight:800; font-size:.88rem; opacity:0; transition:opacity .3s}
+  .saved-flag.show{opacity:1}
+  .last-saved{font-size:.8rem; color:var(--ink-soft); font-weight:700}
+  .sum-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap}
+  .mini{font-family:var(--font-body); font-weight:800; font-size:.78rem; border:1px solid var(--line); background:#fff; color:var(--ink-soft); border-radius:999px; padding:7px 14px; cursor:pointer}
+  .range-pick{display:flex; align-items:center; gap:8px; flex:0 0 auto}
+  .range-in{font-family:var(--font-body); font-weight:600; font-size:.82rem; color:var(--ink); border:1px solid var(--line); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer}
+  .range-sep{color:var(--ink-soft); font-weight:700}
+  .mini.active{background:var(--sun); color:#fff; border-color:var(--sun)}
+  .stat-row{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0 18px}
+  @media(max-width:620px){ .stat-row{grid-template-columns:1fr 1fr} }
+  .stat{background:var(--mist); border-radius:14px; padding:14px; text-align:center}
+  .stat .n{font-family:var(--font-display); font-size:1.6rem; font-weight:600; line-height:1}
+  .stat .l{font-size:.74rem; color:var(--ink-soft); font-weight:700; margin-top:5px}
+  .chartbox{margin-bottom:22px} .chartbox h3{font-size:.92rem; font-weight:800; margin:0 0 10px}
+  .chart-wrap{position:relative; height:240px; width:100%}
+  .chart-wrap-sm{height:180px}
+  /* face week (Headspace-style, softened to the dawn palette) */
+  .face-week{margin-bottom:22px}
+  .fw-hero{border-radius:18px; padding:16px 20px; display:flex; align-items:center; gap:18px; margin-bottom:16px; min-height:92px}
+  .fw-hero-face{background:rgba(255,255,255,.45); border-radius:16px; width:72px; height:72px; flex:0 0 72px; display:flex; align-items:center; justify-content:center}
+  .fw-eyebrow{font-size:.7rem; letter-spacing:.14em; text-transform:uppercase; font-weight:800; color:var(--ink); opacity:.65}
+  .fw-headline{font-family:var(--font-display); font-weight:600; font-size:1.18rem; color:var(--ink); margin:1px 0 3px}
+  .fw-tally{font-size:.84rem; color:var(--ink); opacity:.8; font-weight:700}
+  .fw-strip{display:grid; grid-template-columns:repeat(7,1fr); gap:8px}
+  .fw-day{text-align:center}
+  .fw-block{border-radius:14px; aspect-ratio:1; display:flex; align-items:center; justify-content:center}
+  .fw-block.empty{background:var(--mist); border:1.5px dashed var(--line)}
+  .fw-day.today .fw-block{box-shadow:0 0 0 2.5px var(--sun)}
+  .fw-lbl{font-size:.72rem; font-weight:800; color:var(--ink-soft); margin-top:6px}
+  .fw-date{font-size:.64rem; color:var(--ink-soft); opacity:.75}
+  @media(max-width:620px){ .fw-strip{gap:5px} }
+  /* weekly weather box */
+  .ww-box{margin-bottom:4px}
+  .ww-head{display:flex; align-items:center; gap:16px; margin-bottom:12px}
+  .ww-domic{width:78px; height:78px; flex:0 0 78px; border-radius:18px; display:flex; align-items:center; justify-content:center}
+  .ww-domic svg{width:46px; height:46px}
+  .ww-eyebrow{font-size:.7rem; letter-spacing:.14em; text-transform:uppercase; font-weight:800; color:var(--ink-soft)}
+  .ww-headline{font-family:var(--font-display); font-weight:600; font-size:1.2rem; color:var(--ink); margin:1px 0 3px}
+  .ww-sub{font-size:.82rem; color:var(--ink-soft); font-weight:700}
+  .ww-bar{display:flex; gap:6px; height:64px}
+  .ww-tile{min-width:44px; border-radius:13px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; padding:6px 4px; overflow:hidden}
+  .ww-tile svg{width:24px; height:24px}
+  .ww-tile.dom svg{width:30px; height:30px}
+  .ww-n{font-weight:800; font-size:.9rem; color:var(--ink)}
+  .ww-wl{font-size:.7rem; font-weight:700; color:var(--ink); opacity:.85}
+  .ww-empty{padding:24px; text-align:center; color:var(--ink-soft); font-weight:700; background:var(--mist); border-radius:14px}
+  .sum-titlerow{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+  .sum-titlerow h2{margin:0}
+  .sum-cols{display:flex; flex-direction:column; gap:18px}
+  #sleep-chart svg{display:block; width:100%; height:auto; max-width:440px; margin:0 auto}
+  @media(min-width:780px){
+    .sum-cols{flex-direction:row; align-items:flex-end; gap:28px}
+    .sum-cols .face-week{flex:0 0 auto}
+    .sum-cols .face-week .ww-stack{width:322px; height:322px; aspect-ratio:auto; margin:0; max-width:none}
+    .sum-cols #summary-body{flex:1 1 auto; min-width:0}
+    .sum-cols .chartbox{margin:0}
+    .sum-cols #sleep-chart svg{width:100%; height:auto; max-width:none; margin:0}
+  }
+  @media print{ .sum-cols{flex-direction:column} }
+  .ww-stack{display:flex; flex-direction:column; width:min(100%,360px); aspect-ratio:1; margin:0 auto; border-radius:18px; overflow:hidden}
+  .ww-band{position:relative; min-height:60px; padding:8px 20px; overflow:hidden}
+  .ww-band-ic{position:absolute; left:20px; top:50%; transform:translateY(-50%)}
+  .ww-band-ic svg{width:28px; height:28px; display:block}
+  .ww-band-name{position:absolute; left:20px; bottom:7px; font-size:.72rem; font-weight:700; color:#36404A; opacity:.75}
+  .ww-pct{position:absolute; right:22px; top:50%; transform:translateY(-50%); font-family:var(--font-display); font-weight:600; font-size:1.35rem; color:#36404A}
+  .ww-band.dom .ww-band-ic svg{width:44px; height:44px}
+  .ww-band.dom .ww-pct{font-size:2.1rem}
+  /* activity quick chips */
+  .act-chips{display:flex; flex-wrap:wrap; gap:7px; align-items:center; margin-top:12px}
+  .act-quick{font-size:.78rem; font-weight:800; color:var(--ink-soft)}
+  .chip{font-family:var(--font-body); font-weight:700; font-size:.82rem; border:1px solid var(--line); background:var(--mist); color:var(--ink); border-radius:999px; padding:6px 13px; cursor:pointer; transition:border-color .12s,color .12s}
+  .chip:hover{border-color:var(--sun); color:var(--sun)}
+  /* sleep timeline */
+  #sleep-chart{margin-top:2px}
+  .sleep-legend{display:flex; align-items:center; gap:6px; font-size:.78rem; color:var(--ink-soft); font-weight:700; margin-bottom:8px}
+  .sl-dot{width:10px; height:10px; border-radius:50%; background:#5E7AA8; display:inline-block}
+  .sl-arrow{opacity:.55} .sl-unit{opacity:.7; margin-left:2px}
+  .calendar{display:flex; gap:6px; flex-wrap:wrap}
+  .cal-day{width:46px; text-align:center} .cal-day .ic{width:30px; height:30px; margin:0 auto}
+  .cal-day .d{font-size:.62rem; color:var(--ink-soft); font-weight:700; margin-top:2px}
+  .empty{color:var(--ink-soft); font-size:.9rem; text-align:center; padding:20px}
+  .export-row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+  .exp-head{width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; background:none; border:0; padding:0; cursor:pointer; font-family:var(--font-body); text-align:left}
+  .exp-head h2{margin:0}
+  .exp-head .chev{transition:transform .2s; color:var(--ink-soft); font-size:1.05rem}
+  .exp-body{display:none; margin-top:14px}
+  #export-card.exp-open .exp-body{display:block; animation:fade .25s ease}
+  #export-card.exp-open .exp-head .chev{transform:rotate(180deg)}
+  .export-opt{display:flex; align-items:center; gap:8px; font-size:.85rem; font-weight:600; color:var(--ink-soft)}
+  .footnote{font-size:.78rem; color:var(--ink-soft); margin-top:14px}
+  .disclaimer{font-size:.76rem; color:var(--ink-soft); text-align:center; margin-top:26px; max-width:60ch; margin-left:auto; margin-right:auto}
+  .print-only{display:none}
+  @media print{@page{margin:14mm} body{background:#fff} .no-print{display:none !important} .wrap{max-width:none; padding:0}
+    .card{box-shadow:none; border:1px solid #ddd; break-inside:avoid}
+    .print-table{width:100%; border-collapse:collapse; font-size:10px; margin-top:10px}
+    .print-table th,.print-table td{border:1px solid #ccc; padding:4px 6px; text-align:left}
+    .print-table th{background:#f3efe7}
+    .fw-hero,.fw-block{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+    .face-week{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div id="lock-screen" class="lock no-print">
+  <div class="lock-card">
+    <div class="lock-icon" aria-hidden="true">☁️</div>
+    <h1 class="lock-title" data-i18n="appTitle">Inner Weather</h1>
+    <p class="lock-sub" data-i18n="lockSub">Enter your passcode</p>
+    <input type="password" id="lock-input" class="lock-input" inputmode="numeric" autocomplete="off"
+           onkeydown="if(event.key==='Enter')tryUnlock()" aria-label="Passcode">
+    <button class="lock-btn" type="button" onclick="tryUnlock()" data-i18n="lockBtn">Unlock</button>
+    <p class="lock-err" id="lock-err"></p>
+  </div>
+</div>
+<div class="wrap">
+  <div class="topbar no-print">
+    <div class="brand">
+      <svg class="sun-badge" viewBox="0 0 48 48" aria-hidden="true">
+        <g class="ray" stroke="var(--sun)" stroke-width="2.4" stroke-linecap="round">
+          <line x1="24" y1="4" x2="24" y2="11"/><line x1="24" y1="37" x2="24" y2="44"/>
+          <line x1="4" y1="24" x2="11" y2="24"/><line x1="37" y1="24" x2="44" y2="24"/>
+          <line x1="10" y1="10" x2="15" y2="15"/><line x1="33" y1="33" x2="38" y2="38"/>
+          <line x1="38" y1="10" x2="33" y2="15"/><line x1="15" y1="33" x2="10" y2="38"/></g>
+        <circle cx="24" cy="24" r="9" fill="var(--sun)"/></svg>
+      <div><h1 data-i18n="appTitle">Inner Weather</h1></div>
+    </div>
+    <div class="lang-toggle" role="group" aria-label="Language">
+      <button id="lang-en" aria-pressed="true" onclick="setLang('en')">EN</button>
+      <button id="lang-ja" aria-pressed="false" onclick="setLang('ja')">日本語</button>
+    </div>
+  </div>
+
+  <div class="quote">
+    <div class="eyebrow" data-i18n="quoteEyebrow">Quote of the day</div>
+    <div class="greeting" id="greeting">Hi Tai</div>
+    <blockquote id="quote-text">—</blockquote>
+  </div>
+
+  <div class="card no-print">
+    <div class="date-row"><h2 data-i18n="todayTitle" style="margin:0">Today's check-in</h2></div>
+    <p class="sub"><span data-i18n="entryFor">Entry for</span>
+      <input type="date" id="entry-date" onchange="loadEntry()"></p>
+
+    <div class="field">
+      <span class="field-label" data-i18n="moodLabel">How's the weather inside you?</span>
+      <div class="mood-block" id="mood-block"></div>
+    </div>
+
+    <div class="field">
+      <span class="field-label" data-i18n="sleepLabel">Sleep</span>
+      <div class="time-grid">
+        <div class="time-pick"><label data-i18n="wakeup">Woke up (this morning)</label>
+          <div class="sels"><select id="wake-h" onchange="onSleepChange()"></select><span class="colon">:</span><select id="wake-m" onchange="onSleepChange()"></select></div></div>
+        <div class="time-pick"><label data-i18n="bedtime">Went to sleep (night before)</label>
+          <div class="sels"><select id="bed-h" onchange="onSleepChange()"></select><span class="colon">:</span><select id="bed-m" onchange="onSleepChange()"></select></div></div>
+      </div>
+      <div class="sleep-out" id="sleep-out"></div>
+    </div>
+
+    <div class="field">
+      <span class="field-label" data-i18n="mealsLabel">Meals</span>
+      <div class="meals">
+        <label class="chk"><input type="checkbox" id="meal-b" onchange="scheduleAutosave()"><span data-i18n="breakfast">Breakfast</span></label>
+        <label class="chk"><input type="checkbox" id="meal-l" onchange="scheduleAutosave()"><span data-i18n="lunch">Lunch</span></label>
+        <label class="chk"><input type="checkbox" id="meal-d" onchange="scheduleAutosave()"><span data-i18n="dinner">Dinner</span></label>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="field-label" data-i18n="activityLabel">Activities — one per line, and how each went</span>
+      <div id="activity-list"></div>
+      <button type="button" class="add-act" onclick="addActivity()"><span class="plus">⊕</span><span data-i18n="addActivity">Add activity</span></button>
+      <div class="act-chips" id="act-chips"></div>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="notes" data-i18n="notesLabel">Notes</label>
+      <textarea id="notes" oninput="scheduleAutosave()" data-i18n-ph="notesPh" placeholder="Anything you want to remember about today…"></textarea>
+    </div>
+
+    <div class="field">
+      <div class="careblock" id="careblock">
+        <div class="care-head" role="button" tabindex="0" onclick="toggleCare()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCare()}">
+          <span class="title">♡ <span data-i18n="careLabel">A caring check-in</span></span>
+          <span class="chev">▾</span>
+        </div>
+        <div class="care-body">
+          <div class="care-opts">
+            <label class="chk"><input type="checkbox" id="care-anx" onchange="updateCare();scheduleAutosave()"><span data-i18n="careAnx">Anxiety or a panic feeling</span></label>
+            <label class="chk"><input type="checkbox" id="care-low" onchange="updateCare();scheduleAutosave()"><span data-i18n="careLow">Very low or hopeless mood</span></label>
+            <label class="chk"><input type="checkbox" id="care-dark" onchange="updateCare();scheduleAutosave()"><span data-i18n="careDark">Thoughts of harming myself</span></label>
+          </div>
+          <div class="care-support" id="care-support"><p id="care-msg"></p><div class="reslist" id="care-res"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="save-row">
+      <button class="btn btn-primary" onclick="saveEntry()" data-i18n="saveBtn">Save today</button>
+      <span class="last-saved" id="last-saved"></span>
+      <span class="saved-flag" id="saved-flag" data-i18n="savedMsg">Saved ✓</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sum-head no-print">
+      <div class="sum-titlerow"><h2 data-i18n="summaryTitle">Your weather over time</h2></div>
+      <div class="range-pick">
+        <input type="date" id="range-start" class="range-in" onchange="setRange('start')" aria-label="Start date">
+        <span class="range-sep">→</span>
+        <input type="date" id="range-end" class="range-in" onchange="setRange('end')" aria-label="End date">
+      </div>
+    </div>
+    <div class="print-only" id="print-header"></div>
+    <div class="sum-cols">
+      <div class="face-week" id="face-week"></div>
+      <div id="summary-body">
+        <div class="chartbox"><div id="sleep-chart"></div></div>
+      </div>
+    </div>
+    <div class="empty" id="summary-empty" style="display:none" data-i18n="noData">No entries yet — save today's check-in to start your picture.</div>
+    <div class="print-only" id="print-table-wrap"></div>
+  </div>
+
+  <div class="card no-print" id="export-card">
+    <button class="exp-head" type="button" onclick="toggleExport()" aria-expanded="false">
+      <h2 data-i18n="exportTitle">Export</h2>
+      <span class="chev">▾</span>
+    </button>
+    <div class="exp-body">
+      <p class="sub" data-i18n="exportSub">Take your data with you — nothing is sent anywhere unless you share the file.</p>
+      <div class="export-row">
+        <button class="btn btn-soft" onclick="exportExcel()" data-i18n="exportExcel">Export to Excel</button>
+        <button class="btn btn-soft" onclick="exportPDF()" data-i18n="exportPDF">Save as PDF</button>
+        <label class="export-opt"><input type="checkbox" id="include-private" checked>
+          <span data-i18n="includePrivate">Include private check-in details (for your doctor)</span></label>
+      </div>
+      <p class="footnote" data-i18n="exportNote">Tip: uncheck the box for a lighter summary to share with your workplace.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const WEATHER=["storm","heavyrain","rain","sunny"];
+function wIcon(type,color){const c=color||"currentColor";
+  if(type==="sunny")return `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="6" fill="${c}"/><g stroke="${c}" stroke-width="2" stroke-linecap="round"><line x1="16" y1="3" x2="16" y2="7"/><line x1="16" y1="25" x2="16" y2="29"/><line x1="3" y1="16" x2="7" y2="16"/><line x1="25" y1="16" x2="29" y2="16"/><line x1="7" y1="7" x2="9.5" y2="9.5"/><line x1="22.5" y1="22.5" x2="25" y2="25"/><line x1="25" y1="7" x2="22.5" y2="9.5"/><line x1="9.5" y1="22.5" x2="7" y2="25"/></g></svg>`;
+  if(type==="rain")return `<svg viewBox="0 0 32 32"><path d="M9 18a5 5 0 0 1 .6-9.95A6 6 0 0 1 21.5 9 4.5 4.5 0 0 1 22 18H9z" fill="${c}" opacity=".85"/><g stroke="${c}" stroke-width="2" stroke-linecap="round"><line x1="11" y1="22" x2="10" y2="26"/><line x1="17" y1="22" x2="16" y2="26"/></g></svg>`;
+  if(type==="heavyrain")return `<svg viewBox="0 0 32 32"><path d="M9 17a5 5 0 0 1 .6-9.95A6 6 0 0 1 21.5 8 4.5 4.5 0 0 1 22 17H9z" fill="${c}"/><g stroke="${c}" stroke-width="2" stroke-linecap="round"><line x1="9" y1="21" x2="8" y2="26"/><line x1="14" y1="21" x2="13" y2="27"/><line x1="19" y1="21" x2="18" y2="26"/><line x1="24" y1="21" x2="23" y2="27"/></g></svg>`;
+  return `<svg viewBox="0 0 32 32"><path d="M9 16a5 5 0 0 1 .6-9.95A6 6 0 0 1 21.5 7 4.5 4.5 0 0 1 22 16H9z" fill="${c}"/><path d="M16 17l-4 6h3l-1 5 5-7h-3l2-4z" fill="#F4A259"/></svg>`;}
+const WCOLORS={sunny:"#F4A259",rain:"#7FB3D5",heavyrain:"#5784AE",storm:"#8779A8"};
+
+const QUOTES=[
+ {en:"Whatever the weather inside you today, you are not the storm — you are the sky it passes through.",ja:"今日のあなたの心がどんな天気でも、あなたは嵐そのものじゃない。嵐が通り過ぎていく、その空のほう。"},
+ {en:"Today only asks for one small step. That's enough.",ja:"今日はほんの小さな一歩でいい。それで十分。"},
+ {en:"You woke up. That already counts as courage.",ja:"目が覚めた。それだけで、もう勇気のあかし。"},
+ {en:"Clouds move. So will this.",ja:"雲は流れていく。これも、きっと。"},
+ {en:"Be as gentle with yourself as you would be with a good friend.",ja:"親友に接するように、自分にもやさしく。"},
+ {en:"Rest is not falling behind. It's part of moving forward.",ja:"休むことは、遅れることじゃない。前に進むための一部。"},
+ {en:"Small days still matter.",ja:"なんでもない一日にも、ちゃんと意味がある。"},
+ {en:"You're allowed to take the time and space to heal.",ja:"回復するための時間も場所も、あなたにはちゃんと許されている。"},
+ {en:"Progress isn't always loud. Sometimes it just quietly shows up.",ja:"前進はいつも派手とは限らない。ただそっと現れることもある。"},
+ {en:"You've made it through every hard day so far. That's a perfect record.",ja:"あなたは今までのつらい日を、すべて乗り越えてきた。それは完璧な記録。"},
+ {en:"Let today be enough, just as it is.",ja:"今日は今日のままで、十分だとしよう。"},
+ {en:"Breathe in. You're still here, and that matters.",ja:"ひと息ついて。あなたはまだここにいる。それは、すごいこと。"}];
+
+/* >>> Verify current numbers for your area before relying on them. <<< */
+const RESOURCES=[
+ {en:{name:"Yorisoi Hotline — 24h, multilingual",info:"0120-279-338"},ja:{name:"よりそいホットライン（24時間・多言語）",info:"0120-279-338"}},
+ {en:{name:"Inochi no Denwa (Japan)",info:"0570-783-556"},ja:{name:"いのちの電話",info:"0570-783-556（ナビダイヤル）"}},
+ {en:{name:"TELL Lifeline — English support in Japan",info:"03-5774-0992"},ja:{name:"TELL ライフライン（英語対応）",info:"03-5774-0992"}},
+ {en:{name:"Find a helpline",info:"findahelpline.com/jp"},ja:{name:"相談窓口を探す",info:"findahelpline.com/jp"}}];
+
+const I18N={
+ en:{appTitle:"Inner Weather",appTag:"A gentle daily check-in",quoteEyebrow:"Quote of the day",greet:"Hi Tai",lockSub:"Enter your passcode",lockBtn:"Unlock",lockErr:"Incorrect passcode",period7:"Last 7 days",period10:"Last 10 days",period14:"Last 14 days",period30:"Last 30 days",
+   todayTitle:"Today's check-in",entryFor:"Entry for",moodLabel:"How's the weather inside you?",
+   slotAM:"Morning",slotPM:"Afternoon",slotNight:"Night",sleepLabel:"Sleep",sleepHint:"Tracks last night's sleep — bedtime is the night before.",bedtime:"Went to sleep (night before)",wakeup:"Woke up (this morning)",
+   sleepResult:"hours of sleep",mealsLabel:"Meals",breakfast:"Breakfast",lunch:"Lunch",dinner:"Dinner",
+   activityLabel:"Activities — one per line, and how each went",addActivity:"Add activity",
+   activityPh:"e.g. went for a walk",actNotePh:"Optional note — what made it go that way",
+   evGood:"Went well",evOk:"So-so",evHard:"Was hard",
+   notesLabel:"Notes",notesPh:"Anything you want to remember about today…",
+   careLabel:"A caring check-in",careHint:"Only for you. Tick anything that fits today — there's no wrong answer.",
+   careAnx:"Anxiety or a panic feeling",careLow:"Very low or hopeless mood",careDark:"Thoughts of harming myself",
+   careMsgSoft:"Thank you for being honest with yourself. Hard feelings are real, and they pass. Be kind to yourself today, and consider telling someone you trust.",
+   careMsgUrgent:"You matter, and you don't have to carry this alone. Please consider reaching out right now to someone who can help:",
+   saveBtn:"Save today",savedMsg:"Saved ✓",lastSaved:"Last saved",continueHint:"You can save now and add more this evening — your morning entry will be waiting.",
+   summaryTitle:"Your weather over time",summarySub:"A picture of the last few weeks.",
+   seeExample:"See example data",clearExample:"Clear example",
+   thisWeek:"This week",weekEmpty:"This week is just beginning",weekBright:"A brighter week",weekSteady:"A steady week",weekTough:"A tougher week — be kind to yourself",weekTally:"{b} bright · {o} okay · {t} tough",
+   domHeadline:{storm:"A stormy week — be kind to yourself",heavyrain:"A lot of heavy rain",rain:"Mostly rain",sunny:"Mostly sunny"},weekReadings:"{n} of {t} readings",sleepTitle:"Sleep — when you slept",sleepHoursUnit:"hours",legendSleep:"went to sleep",legendWake:"woke up",actQuick:"Quick add",actChips:["Study","Gym","Walk","Cook","Hangout","Reading","Work"],
+   statEntries:"days logged",statSunny:"brighter readings",statAvgSleep:"avg sleep",statCare:"care flags",
+   chartMood:"Mood trend (AM · PM · Night)",chartSleep:"Sleep hours",calTitle:"Recent days",
+   noData:"No entries yet. Save today's check-in, or tap “See example data”.",
+   exportTitle:"Export",exportSub:"Take your data with you — nothing is sent anywhere unless you share the file.",
+   exportExcel:"Export to Excel",exportPDF:"Save as PDF",includePrivate:"Include private check-in details (for your doctor)",
+   exportNote:"Tip: uncheck the box for a lighter summary to share with your workplace.",
+   reportTitle:"Inner Weather — Wellbeing Report",reportRange:"Period",reportGen:"Generated",
+   disclaimer:"This journal is a personal tracking tool, not medical advice or a diagnosis. If you're in crisis, please reach out to one of the support lines or a person you trust.",
+   th:{date:"Date",am:"AM",pm:"PM",night:"Night",bed:"Bedtime",wake:"Wake",sleep:"Sleep(h)",b:"Breakfast",l:"Lunch",d:"Dinner",act:"Activities & how they went",notes:"Notes",anx:"Anxiety",low:"Low mood",dark:"Self-harm thoughts"},
+   yes:"Yes",no:"—"},
+ ja:{appTitle:"こころの天気",appTag:"やさしい毎日のふりかえり",quoteEyebrow:"今日のひとこと",greet:"タイさん、こんにちは",lockSub:"パスコードを入力",lockBtn:"ロック解除",lockErr:"パスコードが違います",period7:"直近7日",period10:"直近10日",period14:"直近14日",period30:"直近30日",
+   todayTitle:"今日のふりかえり",entryFor:"記録する日",moodLabel:"あなたの心の天気は？",
+   slotAM:"朝",slotPM:"昼",slotNight:"夜",sleepLabel:"睡眠",sleepHint:"前の晩の睡眠を記録します（就寝は前夜）。",bedtime:"寝た時刻（前夜）",wakeup:"起きた時刻（今朝）",
+   sleepResult:"時間の睡眠",mealsLabel:"食事",breakfast:"朝食",lunch:"昼食",dinner:"夕食",
+   activityLabel:"活動 — 1行に1つ、その手応えも",addActivity:"活動を追加",
+   activityPh:"例：散歩した",actNotePh:"メモ（任意）— なぜそう感じたか",
+   evGood:"うまくいった",evOk:"まあまあ",evHard:"つらかった",
+   notesLabel:"メモ",notesPh:"今日のこと、覚えておきたいことを自由に…",
+   careLabel:"こころのチェックイン",careHint:"あなただけのための記録です。当てはまるものに、気軽にチェックを。正解はありません。",
+   careAnx:"不安・パニックのような感じ",careLow:"とても気分が落ち込む・希望が持てない",careDark:"自分を傷つけたいという考え",
+   careMsgSoft:"自分に正直でいてくれて、ありがとう。つらい気持ちは本物で、そして必ず過ぎていきます。今日は自分にやさしく。信頼できる人に話してみるのもいいかもしれません。",
+   careMsgUrgent:"あなたは大切な存在で、これをひとりで抱える必要はありません。今すぐ、助けになれる人に連絡することを考えてみてください：",
+   saveBtn:"今日を保存",savedMsg:"保存しました ✓",lastSaved:"最終保存",continueHint:"途中で保存して、夜にまた追記できます。朝の入力はそのまま残ります。",
+   summaryTitle:"これまでのこころの天気",summarySub:"ここ数週間のようすです。",
+   seeExample:"サンプルを見る",clearExample:"サンプルを消す",
+   thisWeek:"今週",weekEmpty:"今週はこれから",weekBright:"明るい一週間",weekSteady:"おだやかな一週間",weekTough:"つらめの一週間。どうか自分にやさしく。",weekTally:"明るい日 {b}・ふつう {o}・つらい日 {t}",
+   domHeadline:{storm:"嵐の多い一週間。どうか自分にやさしく。",heavyrain:"大雨が多めの一週間",rain:"雨が多めの一週間",sunny:"晴れが多めの一週間"},weekReadings:"{t}回中 {n}回",sleepTitle:"睡眠 — 就寝から起床まで",sleepHoursUnit:"時間",legendSleep:"就寝",legendWake:"起床",actQuick:"かんたん追加",actChips:["勉強","ジム","散歩","料理","外出","読書","仕事"],
+   statEntries:"記録した日",statSunny:"晴れの回数",statAvgSleep:"平均睡眠",statCare:"ケアの記録",
+   chartMood:"気分の推移（朝・昼・夜）",chartSleep:"睡眠時間",calTitle:"最近の日々",
+   noData:"まだ記録がありません。今日のふりかえりを保存するか、「サンプルを見る」を押してください。",
+   exportTitle:"エクスポート",exportSub:"データは手元に。ファイルを共有しない限り、どこにも送信されません。",
+   exportExcel:"Excelに出力",exportPDF:"PDFで保存",includePrivate:"こころのチェックインの詳細を含める（主治医向け）",
+   exportNote:"ヒント：職場に渡すときは、チェックを外すと軽い要約になります。",
+   reportTitle:"こころの天気 — ウェルビーイング レポート",reportRange:"期間",reportGen:"作成日",
+   disclaimer:"このジャーナルは個人的な記録ツールであり、医療上の助言や診断ではありません。危機を感じているときは、相談窓口や信頼できる人に連絡してください。",
+   th:{date:"日付",am:"朝",pm:"昼",night:"夜",bed:"就寝",wake:"起床",sleep:"睡眠(h)",b:"朝食",l:"昼食",d:"夕食",act:"活動と手応え",notes:"メモ",anx:"不安",low:"気分の落込み",dark:"自傷の考え"},
+   yes:"はい",no:"—"}};
+
+const STORE_KEY="innerWeather.entries.v2"; let memStore=null;
+function loadAll(){try{const r=localStorage.getItem(STORE_KEY);return r?JSON.parse(r):{};}catch(e){return memStore||{};}}
+function saveAll(o){try{localStorage.setItem(STORE_KEY,JSON.stringify(o));}catch(e){memStore=o;}}
+
+let lang="en";
+let entries=loadAll();
+const t=k=>I18N[lang][k];
+const todayStr=()=>new Date().toLocaleDateString("en-CA");
+function dayOfYear(d){const s=new Date(d.getFullYear(),0,0);return Math.floor((d-s)/864e5);}
+function sleepHours(bed,wake){if(!bed||!wake)return null;const[bh,bm]=bed.split(":").map(Number),[wh,wm]=wake.split(":").map(Number);let m=(wh*60+wm)-(bh*60+bm);if(m<=0)m+=1440;return Math.round(m/6)/10;}
+
+let selected={am:null,pm:null,night:null};
+let activities=[];
+
+function fillTimeSelects(){
+  const pad=n=>String(n).padStart(2,"0");
+  const wakeHrs=["--"].concat([6,7,8,9,10,11,12].map(pad));
+  const bedHrs=["--"].concat([20,21,22,23,0,1,2,3].map(pad));
+  const mins=["--","00","15","30","45"];
+  [["wake-h",wakeHrs],["bed-h",bedHrs],["wake-m",mins],["bed-m",mins]].forEach(([id,opts])=>{
+    document.getElementById(id).innerHTML=opts.map(o=>`<option value="${o==="--"?"":o}">${o}</option>`).join("");
+  });
+}
+function getTime(p){const h=document.getElementById(p+"-h").value,m=document.getElementById(p+"-m").value;return(h&&m)?`${h}:${m}`:"";}
+function setTime(p,v){const h=document.getElementById(p+"-h"),m=document.getElementById(p+"-m");if(v){const[a,b]=v.split(":");h.value=a;m.value=b;}else{h.value="";m.value="";}}
+
+function buildMoodBlock(){
+  const slots=[["am","slotAM"],["pm","slotPM"],["night","slotNight"]];
+  document.getElementById("mood-block").innerHTML=slots.map(([slot,lbl])=>`
+    <div class="mood-slot"><span data-i18n="${lbl}">${t(lbl)}</span>
+      <div class="weather-row">${WEATHER.map(w=>`
+        <button type="button" class="w-btn ${w}" aria-pressed="${selected[slot]===w}" onclick="pickWeather('${slot}','${w}')" title="${weatherLabel(w)}">
+          ${wIcon(w,WCOLORS[w])}<small>${weatherLabel(w)}</small></button>`).join("")}</div></div>`).join("");
+}
+function weatherLabel(w){const en={storm:"Storm",heavyrain:"Heavy rain",rain:"Rain",sunny:"Sunny"};const ja={storm:"嵐",heavyrain:"大雨",rain:"雨",sunny:"晴れ"};return(lang==="ja"?ja:en)[w];}
+function pickWeather(s,w){selected[s]=selected[s]===w?null:w;buildMoodBlock();scheduleAutosave();}
+
+/* ---- activities ---- */
+function renderActivities(){
+  const wrap=document.getElementById("activity-list");
+  if(!activities.length){wrap.innerHTML="";return;}
+  wrap.innerHTML=activities.map((a,i)=>`
+    <div class="act-row">
+      <div class="act-top">
+        <input type="text" value="${escAttr(a.text)}" placeholder="${t('activityPh')}" oninput="updateAct(${i},'text',this.value)">
+        <button type="button" class="act-del" title="remove" onclick="removeActivity(${i})">✕</button>
+      </div>
+      <div class="act-eval"><span class="lbl">${evalLabel()}</span>
+        ${[["good","evGood"],["ok","evOk"],["hard","evHard"]].map(([r,k])=>`
+          <button type="button" class="ev-btn ${r}" aria-pressed="${a.rating===r}" onclick="setRating(${i},'${r}')">${t(k)}</button>`).join("")}
+      </div>
+      <div class="act-note"><input type="text" value="${escAttr(a.note)}" placeholder="${t('actNotePh')}" oninput="updateAct(${i},'note',this.value)"></div>
+    </div>`).join("");
+}
+function evalLabel(){return lang==="ja"?"手応え：":"How it went:";}
+function addActivity(text){activities.push({text:text||"",rating:null,note:""});renderActivities();scheduleAutosave();}
+function renderChips(){const el=document.getElementById("act-chips");if(!el)return;
+  el.innerHTML=`<span class="act-quick">${t("actQuick")}:</span>`+I18N[lang].actChips.map(c=>`<button type="button" class="chip" onclick="addActivity('${c.replace(/'/g,"\\'")}')">${c}</button>`).join("");}
+function removeActivity(i){activities.splice(i,1);renderActivities();scheduleAutosave();}
+function updateAct(i,f,v){activities[i][f]=v;scheduleAutosave();}
+function setRating(i,r){activities[i].rating=activities[i].rating===r?null:r;renderActivities();scheduleAutosave();}
+function escAttr(s){return(s||"").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
+
+function applyI18n(){
+  document.documentElement.setAttribute("data-lang",lang);document.documentElement.lang=lang;
+  document.querySelectorAll("[data-i18n]").forEach(el=>{const k=el.getAttribute("data-i18n");if(I18N[lang][k])el.textContent=I18N[lang][k];});
+  document.querySelectorAll("[data-i18n-ph]").forEach(el=>{const k=el.getAttribute("data-i18n-ph");if(I18N[lang][k])el.placeholder=I18N[lang][k];});
+  document.getElementById("lang-en").setAttribute("aria-pressed",lang==="en");
+  document.getElementById("lang-ja").setAttribute("aria-pressed",lang==="ja");
+  showQuote();buildMoodBlock();renderActivities();renderChips();updateSleep();updateCare();renderSummary();updateLastSaved();
+}
+function setLang(l){lang=l;applyI18n();}
+function showQuote(){document.getElementById("greeting").textContent=t("greet");document.getElementById("quote-text").textContent=QUOTES[dayOfYear(new Date())%QUOTES.length][lang];}
+
+function updateSleep(){const h=sleepHours(getTime("bed"),getTime("wake"));document.getElementById("sleep-out").textContent=h!=null?`${h} ${t("sleepResult")}`:"";}
+function toggleCare(){document.getElementById("careblock").classList.toggle("open");}
+function toggleExport(){const c=document.getElementById("export-card");const open=c.classList.toggle("exp-open");c.querySelector(".exp-head").setAttribute("aria-expanded",open);}
+function updateCare(){
+  const dark=document.getElementById("care-dark").checked;
+  const any=dark||document.getElementById("care-anx").checked||document.getElementById("care-low").checked;
+  const box=document.getElementById("care-support");
+  if(!any){box.classList.remove("show");return;}
+  box.classList.add("show");
+  document.getElementById("care-msg").textContent=dark?t("careMsgUrgent"):t("careMsgSoft");
+  document.getElementById("care-res").innerHTML=dark?RESOURCES.map(r=>`<div class="res"><b>${r[lang].name}</b><span>${r[lang].info}</span></div>`).join(""):"";
+}
+function val(id){return document.getElementById(id).value;}
+function chk(id){return document.getElementById(id).checked;}
+
+function loadEntry(){
+  suppressSave=true;
+  const d=val("entry-date");const e=entries[d];
+  selected={am:null,pm:null,night:null};activities=[];
+  setTime("bed","");setTime("wake","");
+  document.getElementById("notes").value="";
+  ["meal-b","meal-l","meal-d","care-anx","care-low","care-dark"].forEach(id=>document.getElementById(id).checked=false);
+  if(e){
+    selected={am:e.am||null,pm:e.pm||null,night:e.night||null};
+    setTime("bed",e.bed||"");setTime("wake",e.wake||"");
+    document.getElementById("notes").value=e.notes||"";
+    document.getElementById("meal-b").checked=!!e.b;document.getElementById("meal-l").checked=!!e.l;document.getElementById("meal-d").checked=!!e.d;
+    document.getElementById("care-anx").checked=!!e.anx;document.getElementById("care-low").checked=!!e.low;document.getElementById("care-dark").checked=!!e.dark;
+    activities=(e.activities||[]).map(a=>({text:a.text||"",rating:a.rating||null,note:a.note||""}));
+  }
+  buildMoodBlock();renderActivities();updateSleep();updateCare();updateLastSaved();
+  suppressSave=false;
+}
+
+let autosaveTimer=null, suppressSave=false;
+function collectEntry(){return {am:selected.am,pm:selected.pm,night:selected.night,bed:getTime("bed"),wake:getTime("wake"),
+    b:chk("meal-b"),l:chk("meal-l"),d:chk("meal-d"),
+    activities:activities.filter(a=>a.text.trim()),notes:val("notes"),
+    anx:chk("care-anx"),low:chk("care-low"),dark:chk("care-dark")};}
+function hasContent(e){return !!(e.am||e.pm||e.night||e.bed||e.wake||e.b||e.l||e.d||(e.activities&&e.activities.length)||e.notes||e.anx||e.low||e.dark);}
+function writeEntry(silent){
+  const d=val("entry-date");const e=collectEntry();
+  if(hasContent(e)){e.savedAt=new Date().toISOString();entries[d]=e;}else{delete entries[d];}
+  saveAll(entries);updateLastSaved();renderSummary();
+  if(!silent){const f=document.getElementById("saved-flag");f.classList.add("show");setTimeout(()=>f.classList.remove("show"),1800);}
+}
+function scheduleAutosave(){if(suppressSave)return;clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>writeEntry(true),900);}
+function onSleepChange(){updateSleep();scheduleAutosave();}
+function updateLastSaved(){
+  const e=entries[val("entry-date")];const el=document.getElementById("last-saved");
+  if(e&&e.savedAt){const ts=new Date(e.savedAt);el.textContent=`${I18N[lang].lastSaved} ${ts.toLocaleTimeString(lang==="ja"?"ja-JP":"en-US",{hour:"numeric",minute:"2-digit"})}`;}
+  else{el.textContent="";}
+}
+
+function saveEntry(){
+  writeEntry(false);
+}
+
+let moodChart,sleepChart;
+let rangeStart, rangeEnd;
+const sortedDates=()=>Object.keys(entries).sort();
+const recent=n=>sortedDates().slice(-n);
+const isoOf=dt=>dt.toLocaleDateString("en-CA");
+const addDays=(iso,n)=>{const d=new Date(iso+"T00:00:00");d.setDate(d.getDate()+n);return isoOf(d);};
+const daySpan=(a,b)=>Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/864e5);
+function initRange(){rangeEnd=todayStr();rangeStart=addDays(rangeEnd,-9);}        // most recent 10 days
+function syncRangeInputs(){const s=document.getElementById("range-start"),e=document.getElementById("range-end");
+  if(!s||!e)return; s.value=rangeStart; e.value=rangeEnd; s.max=todayStr(); e.max=todayStr();}
+function setRange(which){
+  const s=document.getElementById("range-start"),e=document.getElementById("range-end");
+  let rs=s.value||rangeStart, re=e.value||rangeEnd;
+  if(daySpan(rs,re)<0){ if(which==="start") re=rs; else rs=re; }       // end before start -> snap
+  else if(daySpan(rs,re)>9){ if(which==="start") re=addDays(rs,9); else rs=addDays(re,-9); } // cap at 10 days
+  rangeStart=rs; rangeEnd=re; syncRangeInputs(); renderSummary();
+}
+function rangeDates(){return sortedDates().filter(d=>d>=rangeStart&&d<=rangeEnd);}
+
+/* ---- weekly weather box + sleep timeline (softened palette) ---- */
+const FACECOL={1:"#B3A4D0",2:"#97B5D4",3:"#AFD6E8",4:"#F7C985"};
+const wColor=w=>FACECOL[WEATHER.indexOf(w)+1];
+function weekDates(){const t0=new Date();const off=(t0.getDay()+6)%7;const mon=new Date(t0);mon.setDate(t0.getDate()-off);
+  return [...Array(7)].map((_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});}
+function renderWeekWeather(){
+  const wrap=document.getElementById("face-week");if(!wrap)return;
+  const days=rangeDates();
+  const counts={storm:0,heavyrain:0,rain:0,sunny:0};let total=0;
+  days.forEach(d=>{const e=entries[d];if(!e)return;
+    [e.am,e.pm,e.night].forEach(w=>{if(w){counts[w]++;total++;}});});
+  if(!total){wrap.innerHTML=`<div class="ww-empty">${t("weekEmpty")}</div>`;return;}
+  const present=["sunny","rain","heavyrain","storm"].filter(w=>counts[w]>0).sort((a,b)=>counts[b]-counts[a]);
+  const pc=pctRound(present.map(w=>counts[w]));
+  wrap.innerHTML=`<div class="ww-stack">`+present.map((w,i)=>`<div class="ww-band${i===0?' dom':''}" style="flex:${counts[w]}; background:${wColor(w)}">
+      <div class="ww-band-ic">${wIcon(w,"#3A434D")}</div>
+      <div class="ww-pct">${pc[i]}%</div>
+      <div class="ww-band-name">${weatherLabel(w)}</div></div>`).join("")+`</div>`;
+}
+function pctRound(counts){
+  const total=counts.reduce((a,b)=>a+b,0);
+  let r=counts.map(c=>{let v=Math.round(c/total*20)*5;if(c>0&&v<5)v=5;return v;});
+  let diff=100-r.reduce((a,b)=>a+b,0),guard=0;
+  while(diff!==0&&guard++<60){
+    if(diff>0){let bi=0,bv=-1e9;r.forEach((rv,i)=>{const e=counts[i]/total*100-rv;if(e>bv){bv=e;bi=i;}});r[bi]+=5;diff-=5;}
+    else{let bi=0,bv=-1e9;r.forEach((rv,i)=>{const e=rv-counts[i]/total*100;if(e>bv&&rv>5){bv=e;bi=i;}});r[bi]-=5;diff+=5;}
+  }
+  return r;
+}
+function renderSleep(){
+  const host=document.getElementById("sleep-chart");if(!host)return;
+  const days=rangeDates();
+  if(!days.length){host.innerHTML="";return;}
+  const n=days.length,T=1080,W=500,H=336,padL=38,padR=8,padT=12,padB=92;
+  const plotW=W-padL-padR,plotH=H-padT-padB;
+  const toMin=tt=>{const[h,m]=tt.split(":").map(Number);return ((h-19+24)%24)*60+m;};
+  const x=i=>padL+(i+0.5)*(plotW/n),y=m=>padT+(m/T)*plotH;
+  const lw=Math.min(15,(plotW/n)*0.42),rdot=lw*0.32;
+  const baseHours=H-padB+18,baseDate=H-padB+31,iconY=H-padB+48,isz=18;
+  let s=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" font-family="Nunito,sans-serif" aria-label="Sleep windows and daily weather">`;
+  [[60,"20:00"],[180,"22:00"],[300,"00:00"],[420,"02:00"],[540,"04:00"],[660,"06:00"],[780,"08:00"],[900,"10:00"],[1020,"12:00"]].forEach(([m,l])=>{const yy=y(m);
+    s+=`<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="rgba(54,64,74,.07)"/><text x="${padL-5}" y="${yy+3}" font-size="7.5" fill="#9aa0a6" text-anchor="end">${l}</text>`;});
+  days.forEach((d,i)=>{const e=entries[d],cx=x(i);
+    s+=`<line x1="${cx}" y1="${padT}" x2="${cx}" y2="${padT+plotH}" stroke="rgba(54,64,74,.05)" stroke-width="${lw}" stroke-linecap="round"/>`;
+    if(e.bed&&e.wake){const yb=y(toMin(e.bed)),yw=y(toMin(e.wake));
+      s+=`<line x1="${cx}" y1="${yb}" x2="${cx}" y2="${yw}" stroke="#9DB7D6" stroke-width="${lw}" stroke-linecap="round"/>`;
+      s+=`<circle cx="${cx}" cy="${yb}" r="${rdot}" fill="#5E7AA8"/><circle cx="${cx}" cy="${yw}" r="${rdot}" fill="#5E7AA8"/>`;
+      s+=`<text x="${cx}" y="${baseHours}" font-size="9.5" fill="#36404A" text-anchor="middle" font-weight="700">${sleepHours(e.bed,e.wake)}</text>`;}
+    s+=`<text x="${cx}" y="${baseDate}" font-size="7" fill="#b3b8bd" text-anchor="middle">${d.slice(5)}</text>`;
+    const w=e.night||e.pm||e.am;
+    if(w)s+=wIcon(w,WCOLORS[w]).replace('<svg ',`<svg x="${cx-isz/2}" y="${iconY}" width="${isz}" height="${isz}" `);});
+  s+=`</svg>`;
+  host.innerHTML=`<div class="sleep-legend"><span class="sl-dot"></span>${t("legendSleep")}<span class="sl-arrow">→</span><span class="sl-dot"></span>${t("legendWake")}<span class="sl-unit">·&nbsp;${t("sleepHoursUnit")}</span></div>`+s;
+}
+
+function renderSummary(){
+  const dates=sortedDates();const has=dates.length>0;
+  document.getElementById("summary-body").style.display=has?"block":"none";
+  document.getElementById("summary-empty").style.display=has?"none":"block";
+  document.getElementById("face-week").style.display=has?"block":"none";
+  if(!has)return;
+  renderWeekWeather();
+  renderSleep();
+}
+
+function actsToText(e){const RL={good:t("evGood"),ok:t("evOk"),hard:t("evHard")};
+  return(e.activities||[]).map(a=>`${a.text}${a.rating?" ("+RL[a.rating]+")":""}${a.note?" — "+a.note:""}`).join(" | ");}
+function buildRows(includePrivate){const th=I18N[lang].th,Y=t("yes"),N=t("no");
+  return sortedDates().map(d=>{const e=entries[d];const row={
+    [th.date]:d,[th.am]:e.am?weatherLabel(e.am):"",[th.pm]:e.pm?weatherLabel(e.pm):"",[th.night]:e.night?weatherLabel(e.night):"",
+    [th.bed]:e.bed||"",[th.wake]:e.wake||"",[th.sleep]:sleepHours(e.bed,e.wake)??"",
+    [th.b]:e.b?Y:N,[th.l]:e.l?Y:N,[th.d]:e.d?Y:N,[th.act]:actsToText(e),[th.notes]:e.notes||""};
+    if(includePrivate){row[th.anx]=e.anx?Y:N;row[th.low]=e.low?Y:N;row[th.dark]=e.dark?Y:N;}return row;});}
+function exportExcel(){const rows=buildRows(chk("include-private"));if(!rows.length){alert(t("noData"));return;}
+  if(typeof XLSX==="undefined"){alert(lang==="ja"?"Excelの書き出しにはインターネット接続が必要です。":"Excel export needs an internet connection to load its library.");return;}
+  const ws=XLSX.utils.json_to_sheet(rows);ws["!cols"]=Object.keys(rows[0]).map(k=>({wch:Math.max(k.length+2,12)}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,lang==="ja"?"こころの天気":"Inner Weather");
+  XLSX.writeFile(wb,`inner-weather_${todayStr()}.xlsx`);}
+function exportPDF(){const dates=sortedDates();if(!dates.length){alert(t("noData"));return;}
+  document.getElementById("print-header").innerHTML=`<h2 style="font-family:var(--font-display);margin:0 0 4px">${t("reportTitle")}</h2><p style="color:#6B7682;margin:0;font-size:12px">${t("reportRange")}: ${dates[0]} → ${dates[dates.length-1]} · ${t("reportGen")}: ${todayStr()}</p>`;
+  const rows=buildRows(chk("include-private"));const cols=Object.keys(rows[0]);
+  document.getElementById("print-table-wrap").innerHTML=`<table class="print-table"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${String(r[c]??"").replace(/</g,"&lt;")}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  setTimeout(()=>window.print(),120);}
+
+const PASSCODE="555";
+const UNLOCK_KEY="innerWeather.unlocked";
+function isUnlocked(){try{return localStorage.getItem(UNLOCK_KEY)==="1";}catch(e){return false;}}
+function unlockApp(){const ls=document.getElementById("lock-screen");if(ls)ls.classList.add("hide");document.body.classList.remove("locked");}
+function tryUnlock(){const inp=document.getElementById("lock-input");const v=(inp.value||"").trim();
+  if(v===PASSCODE){try{localStorage.setItem(UNLOCK_KEY,"1");}catch(e){}document.getElementById("lock-err").textContent="";unlockApp();}
+  else{document.getElementById("lock-err").textContent=t("lockErr");inp.value="";inp.focus();}}
+function initLock(){if(isUnlocked()){unlockApp();}else{document.body.classList.add("locked");const i=document.getElementById("lock-input");if(i)i.focus();}}
+
+(function init(){fillTimeSelects();document.getElementById("entry-date").value=todayStr();initRange();applyI18n();initLock();syncRangeInputs();loadEntry();})();
+</script>
+</body>
+</html>

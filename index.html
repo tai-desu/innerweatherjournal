@@ -118,6 +118,9 @@
   .btn-primary{background:var(--ink); color:#fff; box-shadow:var(--shadow)}
   .btn-soft{background:#fff; color:var(--ink); border:1px solid var(--line)}
   .save-row{display:flex; flex-direction:column; align-items:center; gap:6px; margin-top:10px}
+  .sync-status{font-size:.8rem; font-weight:700; text-align:center}
+  .sync-status.ok{color:#3E7C5A}
+  .sync-status.err{color:#C2553C; max-width:340px}
   .lock{position:fixed; inset:0; z-index:9999; background:linear-gradient(160deg,#FFF7EE 0%,#F1ECF7 100%); display:flex; align-items:center; justify-content:center; padding:20px}
   .lock.hide{display:none}
   body.locked{overflow:hidden}
@@ -344,6 +347,7 @@
       <button class="btn btn-primary" onclick="saveEntry()" data-i18n="saveBtn">Save today</button>
       <span class="last-saved" id="last-saved"></span>
       <span class="saved-flag" id="saved-flag" data-i18n="savedMsg">Saved ✓</span>
+      <span class="sync-status" id="sync-status"></span>
     </div>
   </div>
 
@@ -424,7 +428,7 @@ const RESOURCES=[
  {en:{name:"Find a helpline",info:"findahelpline.com/jp"},ja:{name:"相談窓口を探す",info:"findahelpline.com/jp"}}];
 
 const I18N={
- en:{appTitle:"Inner Weather",appTag:"A gentle daily check-in",quoteEyebrow:"Quote of the day",greet:"Hi Tai",lockSub:"Enter your passcode",lockBtn:"Unlock",lockErr:"Incorrect passcode",signOut:"Sign out",authSignInSub:"Sign in to your journal",authSignUpSub:"Create your journal account",authSignIn:"Sign in",authSignUp:"Create account",authNeedAccount:"Need an account?",authHaveAccount:"Have an account?",authSignUpLink:"Create one",authSignInLink:"Sign in",authMissing:"Enter your email and password",authWorking:"Working…",authCheckEmail:"Check your email to confirm, then sign in.",authNotConfigured:"Backend not set up yet — add your Supabase URL and key.",period7:"Last 7 days",period10:"Last 10 days",period14:"Last 14 days",period30:"Last 30 days",
+ en:{appTitle:"Inner Weather",appTag:"A gentle daily check-in",quoteEyebrow:"Quote of the day",greet:"Hi Tai",lockSub:"Enter your passcode",lockBtn:"Unlock",lockErr:"Incorrect passcode",signOut:"Sign out",authSignInSub:"Sign in to your journal",authSignUpSub:"Create your journal account",authSignIn:"Sign in",authSignUp:"Create account",authNeedAccount:"Need an account?",authHaveAccount:"Have an account?",authSignUpLink:"Create one",authSignInLink:"Sign in",authMissing:"Enter your email and password",authWorking:"Working…",authCheckEmail:"Check your email to confirm, then sign in.",authNotConfigured:"Backend not set up yet — add your Supabase URL and key.",syncOk:"Synced ✓",syncErr:"Sync error",period7:"Last 7 days",period10:"Last 10 days",period14:"Last 14 days",period30:"Last 30 days",
    todayTitle:"Today's check-in",entryFor:"Entry for",moodLabel:"How's the weather inside you?",
    slotAM:"Morning",slotPM:"Afternoon",slotNight:"Night",sleepLabel:"Sleep",sleepHint:"Tracks last night's sleep — bedtime is the night before.",bedtime:"Went to sleep (night before)",wakeup:"Woke up (this morning)",
    sleepResult:"hours of sleep",mealsLabel:"Meals",breakfast:"Breakfast",lunch:"Lunch",dinner:"Dinner",
@@ -453,7 +457,7 @@ const I18N={
    disclaimer:"This journal is a personal tracking tool, not medical advice or a diagnosis. If you're in crisis, please reach out to one of the support lines or a person you trust.",
    th:{date:"Date",am:"AM",pm:"PM",night:"Night",bed:"Bedtime",wake:"Wake",sleep:"Sleep(h)",b:"Breakfast",l:"Lunch",d:"Dinner",act:"Activities & how they went",notes:"Notes",anx:"Anxiety",low:"Low mood",dark:"Self-harm thoughts"},
    yes:"Yes",no:"—"},
- ja:{appTitle:"こころの天気",appTag:"やさしい毎日のふりかえり",quoteEyebrow:"今日のひとこと",greet:"タイさん、こんにちは",lockSub:"パスコードを入力",lockBtn:"ロック解除",lockErr:"パスコードが違います",signOut:"サインアウト",authSignInSub:"ジャーナルにサインイン",authSignUpSub:"アカウントを作成",authSignIn:"サインイン",authSignUp:"アカウント作成",authNeedAccount:"アカウントが必要ですか？",authHaveAccount:"アカウントをお持ちですか？",authSignUpLink:"作成する",authSignInLink:"サインイン",authMissing:"メールとパスワードを入力してください",authWorking:"処理中…",authCheckEmail:"確認メールを開いてから、サインインしてください。",authNotConfigured:"バックエンド未設定 — Supabase の URL とキーを入力してください。",period7:"直近7日",period10:"直近10日",period14:"直近14日",period30:"直近30日",
+ ja:{appTitle:"こころの天気",appTag:"やさしい毎日のふりかえり",quoteEyebrow:"今日のひとこと",greet:"タイさん、こんにちは",lockSub:"パスコードを入力",lockBtn:"ロック解除",lockErr:"パスコードが違います",signOut:"サインアウト",authSignInSub:"ジャーナルにサインイン",authSignUpSub:"アカウントを作成",authSignIn:"サインイン",authSignUp:"アカウント作成",authNeedAccount:"アカウントが必要ですか？",authHaveAccount:"アカウントをお持ちですか？",authSignUpLink:"作成する",authSignInLink:"サインイン",authMissing:"メールとパスワードを入力してください",authWorking:"処理中…",authCheckEmail:"確認メールを開いてから、サインインしてください。",authNotConfigured:"バックエンド未設定 — Supabase の URL とキーを入力してください。",syncOk:"同期済み ✓",syncErr:"同期エラー",period7:"直近7日",period10:"直近10日",period14:"直近14日",period30:"直近30日",
    todayTitle:"今日のふりかえり",entryFor:"記録する日",moodLabel:"あなたの心の天気は？",
    slotAM:"朝",slotPM:"昼",slotNight:"夜",sleepLabel:"睡眠",sleepHint:"前の晩の睡眠を記録します（就寝は前夜）。",bedtime:"寝た時刻（前夜）",wakeup:"起きた時刻（今朝）",
    sleepResult:"時間の睡眠",mealsLabel:"食事",breakfast:"朝食",lunch:"昼食",dinner:"夕食",
@@ -762,22 +766,40 @@ async function onSignedIn(session){
 function onSignedOut(){
   currentUser=null;
   if(realtimeChan){try{sb.removeChannel(realtimeChan);}catch(e){} realtimeChan=null;}
-  entries={};saveAll(entries);renderSummary();loadEntry();showAuth();
+  showAuth();
 }
 async function signOut(){if(sb){try{await sb.auth.signOut();}catch(e){}}}
+function setSync(state,msg){const el=document.getElementById("sync-status");if(!el)return;
+  el.classList.remove("ok","err");
+  if(state==="ok"){el.classList.add("ok");el.textContent=t("syncOk");}
+  else if(state==="err"){el.classList.add("err");el.textContent=t("syncErr")+(msg?": "+msg:"");}
+  else el.textContent="";}
 async function loadFromCloud(){
   if(!sb||!currentUser)return;
+  let cloud={};
   try{const {data,error}=await sb.from("entries").select("date,data");if(error)throw error;
-    const obj={};(data||[]).forEach(r=>{obj[r.date]=r.data;});
-    entries=obj;saveAll(entries);renderSummary();loadEntry();}catch(e){/* keep local cache */}
+    (data||[]).forEach(r=>{cloud[r.date]=r.data;});}
+  catch(e){setSync("err",e&&e.message);return;}
+  const local=entries||{};const merged={};const toPush=[];
+  new Set([...Object.keys(local),...Object.keys(cloud)]).forEach(d=>{
+    const l=local[d],c=cloud[d];
+    if(l&&c){const lt=l.savedAt||"",ct=c.savedAt||"";merged[d]=lt>=ct?l:c;if(lt>ct)toPush.push(d);}
+    else if(l){merged[d]=l;toPush.push(d);}
+    else{merged[d]=c;}
+  });
+  entries=merged;saveAll(entries);renderSummary();loadEntry();
+  for(const d of toPush){if(merged[d])cloudUpsert(d,merged[d]);}
+  setSync("ok");
 }
 async function cloudUpsert(date,data){
   if(!sb||!currentUser||applyingRemote)return;
-  try{await sb.from("entries").upsert({user_id:currentUser.id,date,data,updated_at:new Date().toISOString()},{onConflict:"user_id,date"});}catch(e){}
+  try{const {error}=await sb.from("entries").upsert({user_id:currentUser.id,date,data,updated_at:new Date().toISOString()},{onConflict:"user_id,date"});if(error)throw error;setSync("ok");}
+  catch(e){setSync("err",e&&e.message);}
 }
 async function cloudDelete(date){
   if(!sb||!currentUser||applyingRemote)return;
-  try{await sb.from("entries").delete().eq("date",date);}catch(e){}
+  try{const {error}=await sb.from("entries").delete().eq("date",date);if(error)throw error;setSync("ok");}
+  catch(e){setSync("err",e&&e.message);}
 }
 function subscribeRealtime(){
   if(!sb||realtimeChan)return;

@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Nunito:wght@400;500;600;700;800&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --paper:#FBF6EE; --sky-1:#FFE3C4; --sky-2:#CDE7F0;
@@ -129,6 +130,11 @@
   .lock-btn{width:100%; font-family:var(--font-body); font-weight:800; font-size:1rem; color:#fff; background:var(--ink); border:none; border-radius:14px; padding:13px; cursor:pointer}
   .lock-btn:hover{opacity:.92}
   .lock-err{color:#C2553C; font-size:.85rem; font-weight:700; min-height:1.2em; margin:12px 0 0}
+  .auth-input{width:100%; box-sizing:border-box; font-family:var(--font-body); font-size:1rem; text-align:left; padding:12px 14px; border:1px solid var(--line); border-radius:14px; background:var(--mist); margin-bottom:12px}
+  .auth-input:focus{outline:none; border-color:var(--sun); background:#fff}
+  .auth-toggle{font-size:.85rem; color:var(--ink-soft); margin:14px 0 0}
+  .auth-toggle a{color:var(--sun); font-weight:800; text-decoration:none}
+  .signout{font-family:var(--font-body); font-weight:700; font-size:.78rem; color:var(--ink-soft); border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 13px; cursor:pointer; margin-left:8px}
   .saved-flag{color:var(--leaf); font-weight:800; font-size:.88rem; opacity:0; transition:opacity .3s}
   .saved-flag.show{opacity:1}
   .last-saved{font-size:.8rem; color:var(--ink-soft); font-weight:700}
@@ -217,6 +223,10 @@
   .exp-head .chev{transition:transform .2s; color:var(--ink-soft); font-size:1.05rem}
   .exp-body{display:none; margin-top:14px}
   #export-card.exp-open .exp-body{display:block; animation:fade .25s ease}
+  .backup-box{margin-top:16px; border-top:1px solid var(--line); padding-top:14px}
+  .backup-row{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+  .backup-status{font-size:.82rem; color:var(--ink-soft); font-weight:700}
+  .backup-status.ok{color:#3E7C5A}
   #export-card.exp-open .exp-head .chev{transform:rotate(180deg)}
   .export-opt{display:flex; align-items:center; gap:8px; font-size:.85rem; font-weight:600; color:var(--ink-soft)}
   .footnote{font-size:.78rem; color:var(--ink-soft); margin-top:14px}
@@ -232,15 +242,18 @@
 </style>
 </head>
 <body>
-<div id="lock-screen" class="lock no-print">
+<div id="auth-screen" class="lock no-print">
   <div class="lock-card">
     <div class="lock-icon" aria-hidden="true">☁️</div>
     <h1 class="lock-title" data-i18n="appTitle">Inner Weather</h1>
-    <p class="lock-sub" data-i18n="lockSub">Enter your passcode</p>
-    <input type="password" id="lock-input" class="lock-input" inputmode="numeric" autocomplete="off"
-           onkeydown="if(event.key==='Enter')tryUnlock()" aria-label="Passcode">
-    <button class="lock-btn" type="button" onclick="tryUnlock()" data-i18n="lockBtn">Unlock</button>
-    <p class="lock-err" id="lock-err"></p>
+    <p class="lock-sub" id="auth-sub" data-i18n="authSignInSub">Sign in to your journal</p>
+    <input type="email" id="auth-email" class="auth-input" autocomplete="email" placeholder="you@example.com" aria-label="Email">
+    <input type="password" id="auth-pass" class="auth-input" autocomplete="current-password" placeholder="••••••••" aria-label="Password"
+           onkeydown="if(event.key==='Enter')authSubmit()">
+    <button class="lock-btn" type="button" id="auth-btn" onclick="authSubmit()" data-i18n="authSignIn">Sign in</button>
+    <p class="auth-toggle"><span id="auth-toggle-text" data-i18n="authNeedAccount">Need an account?</span>
+       <a href="#" id="auth-toggle-link" onclick="authToggle();return false" data-i18n="authSignUpLink">Create one</a></p>
+    <p class="lock-err" id="auth-err"></p>
   </div>
 </div>
 <div class="wrap">
@@ -259,6 +272,7 @@
       <button id="lang-en" aria-pressed="true" onclick="setLang('en')">EN</button>
       <button id="lang-ja" aria-pressed="false" onclick="setLang('ja')">日本語</button>
     </div>
+    <button id="signout-btn" class="signout no-print" type="button" onclick="signOut()" style="display:none" data-i18n="signOut">Sign out</button>
   </div>
 
   <div class="quote">
@@ -367,6 +381,13 @@
           <span data-i18n="includePrivate">Include private check-in details (for your doctor)</span></label>
       </div>
       <p class="footnote" data-i18n="exportNote">Tip: uncheck the box for a lighter summary to share with your workplace.</p>
+      <div class="backup-box">
+        <div class="backup-row">
+          <button class="btn btn-soft" type="button" id="backup-connect" onclick="backupButtonClick()" data-i18n="backupConnect">Connect backup file</button>
+          <span class="backup-status" id="backup-status"></span>
+        </div>
+        <p class="footnote" data-i18n="backupHelp">Pick a file inside your Google Drive or OneDrive folder. Your journal is written there automatically every time you save (Chrome or Edge).</p>
+      </div>
     </div>
   </div>
 
@@ -403,7 +424,7 @@ const RESOURCES=[
  {en:{name:"Find a helpline",info:"findahelpline.com/jp"},ja:{name:"相談窓口を探す",info:"findahelpline.com/jp"}}];
 
 const I18N={
- en:{appTitle:"Inner Weather",appTag:"A gentle daily check-in",quoteEyebrow:"Quote of the day",greet:"Hi Tai",lockSub:"Enter your passcode",lockBtn:"Unlock",lockErr:"Incorrect passcode",period7:"Last 7 days",period10:"Last 10 days",period14:"Last 14 days",period30:"Last 30 days",
+ en:{appTitle:"Inner Weather",appTag:"A gentle daily check-in",quoteEyebrow:"Quote of the day",greet:"Hi Tai",lockSub:"Enter your passcode",lockBtn:"Unlock",lockErr:"Incorrect passcode",signOut:"Sign out",authSignInSub:"Sign in to your journal",authSignUpSub:"Create your journal account",authSignIn:"Sign in",authSignUp:"Create account",authNeedAccount:"Need an account?",authHaveAccount:"Have an account?",authSignUpLink:"Create one",authSignInLink:"Sign in",authMissing:"Enter your email and password",authWorking:"Working…",authCheckEmail:"Check your email to confirm, then sign in.",authNotConfigured:"Backend not set up yet — add your Supabase URL and key.",period7:"Last 7 days",period10:"Last 10 days",period14:"Last 14 days",period30:"Last 30 days",
    todayTitle:"Today's check-in",entryFor:"Entry for",moodLabel:"How's the weather inside you?",
    slotAM:"Morning",slotPM:"Afternoon",slotNight:"Night",sleepLabel:"Sleep",sleepHint:"Tracks last night's sleep — bedtime is the night before.",bedtime:"Went to sleep (night before)",wakeup:"Woke up (this morning)",
    sleepResult:"hours of sleep",mealsLabel:"Meals",breakfast:"Breakfast",lunch:"Lunch",dinner:"Dinner",
@@ -426,11 +447,13 @@ const I18N={
    exportTitle:"Export",exportSub:"Take your data with you — nothing is sent anywhere unless you share the file.",
    exportExcel:"Export to Excel",exportPDF:"Save as PDF",includePrivate:"Include private check-in details (for your doctor)",
    exportNote:"Tip: uncheck the box for a lighter summary to share with your workplace.",
+   backupConnect:"Connect backup file",backupReconnectBtn:"Reconnect backup",backupChange:"Change backup file",   backupHelp:"Pick a file inside your Google Drive or OneDrive folder. Your journal is written there automatically every time you save (Chrome or Edge).",
+   backupOff:"Not connected",backupConnected:"Connected",backupSaved:"Backed up",backupReconnect:"Tap to reconnect",backupUnsupported:"This browser can't auto-save to a folder — use Chrome or Edge, or the Export buttons above.",
    reportTitle:"Inner Weather — Wellbeing Report",reportRange:"Period",reportGen:"Generated",
    disclaimer:"This journal is a personal tracking tool, not medical advice or a diagnosis. If you're in crisis, please reach out to one of the support lines or a person you trust.",
    th:{date:"Date",am:"AM",pm:"PM",night:"Night",bed:"Bedtime",wake:"Wake",sleep:"Sleep(h)",b:"Breakfast",l:"Lunch",d:"Dinner",act:"Activities & how they went",notes:"Notes",anx:"Anxiety",low:"Low mood",dark:"Self-harm thoughts"},
    yes:"Yes",no:"—"},
- ja:{appTitle:"こころの天気",appTag:"やさしい毎日のふりかえり",quoteEyebrow:"今日のひとこと",greet:"タイさん、こんにちは",lockSub:"パスコードを入力",lockBtn:"ロック解除",lockErr:"パスコードが違います",period7:"直近7日",period10:"直近10日",period14:"直近14日",period30:"直近30日",
+ ja:{appTitle:"こころの天気",appTag:"やさしい毎日のふりかえり",quoteEyebrow:"今日のひとこと",greet:"タイさん、こんにちは",lockSub:"パスコードを入力",lockBtn:"ロック解除",lockErr:"パスコードが違います",signOut:"サインアウト",authSignInSub:"ジャーナルにサインイン",authSignUpSub:"アカウントを作成",authSignIn:"サインイン",authSignUp:"アカウント作成",authNeedAccount:"アカウントが必要ですか？",authHaveAccount:"アカウントをお持ちですか？",authSignUpLink:"作成する",authSignInLink:"サインイン",authMissing:"メールとパスワードを入力してください",authWorking:"処理中…",authCheckEmail:"確認メールを開いてから、サインインしてください。",authNotConfigured:"バックエンド未設定 — Supabase の URL とキーを入力してください。",period7:"直近7日",period10:"直近10日",period14:"直近14日",period30:"直近30日",
    todayTitle:"今日のふりかえり",entryFor:"記録する日",moodLabel:"あなたの心の天気は？",
    slotAM:"朝",slotPM:"昼",slotNight:"夜",sleepLabel:"睡眠",sleepHint:"前の晩の睡眠を記録します（就寝は前夜）。",bedtime:"寝た時刻（前夜）",wakeup:"起きた時刻（今朝）",
    sleepResult:"時間の睡眠",mealsLabel:"食事",breakfast:"朝食",lunch:"昼食",dinner:"夕食",
@@ -453,6 +476,9 @@ const I18N={
    exportTitle:"エクスポート",exportSub:"データは手元に。ファイルを共有しない限り、どこにも送信されません。",
    exportExcel:"Excelに出力",exportPDF:"PDFで保存",includePrivate:"こころのチェックインの詳細を含める（主治医向け）",
    exportNote:"ヒント：職場に渡すときは、チェックを外すと軽い要約になります。",
+   backupConnect:"バックアップ先を選ぶ",backupReconnectBtn:"バックアップを再接続",backupChange:"バックアップ先を変更",
+   backupHelp:"Google ドライブや OneDrive のフォルダ内にファイルを選んでください。保存するたびに自動で書き出されます（Chrome または Edge）。",
+   backupOff:"未接続",backupConnected:"接続済み",backupSaved:"バックアップ済",backupReconnect:"タップして再接続",backupUnsupported:"このブラウザはフォルダへの自動保存に未対応です。Chrome か Edge、または上のエクスポートをご利用ください。",
    reportTitle:"こころの天気 — ウェルビーイング レポート",reportRange:"期間",reportGen:"作成日",
    disclaimer:"このジャーナルは個人的な記録ツールであり、医療上の助言や診断ではありません。危機を感じているときは、相談窓口や信頼できる人に連絡してください。",
    th:{date:"日付",am:"朝",pm:"昼",night:"夜",bed:"就寝",wake:"起床",sleep:"睡眠(h)",b:"朝食",l:"昼食",d:"夕食",act:"活動と手応え",notes:"メモ",anx:"不安",low:"気分の落込み",dark:"自傷の考え"},
@@ -573,9 +599,11 @@ function collectEntry(){return {am:selected.am,pm:selected.pm,night:selected.nig
     anx:chk("care-anx"),low:chk("care-low"),dark:chk("care-dark")};}
 function hasContent(e){return !!(e.am||e.pm||e.night||e.bed||e.wake||e.b||e.l||e.d||(e.activities&&e.activities.length)||e.notes||e.anx||e.low||e.dark);}
 function writeEntry(silent){
-  const d=val("entry-date");const e=collectEntry();
-  if(hasContent(e)){e.savedAt=new Date().toISOString();entries[d]=e;}else{delete entries[d];}
+  const d=val("entry-date");const e=collectEntry();const had=hasContent(e);
+  if(had){e.savedAt=new Date().toISOString();entries[d]=e;}else{delete entries[d];}
   saveAll(entries);updateLastSaved();renderSummary();
+  doBackup();
+  if(had)cloudUpsert(d,entries[d]);else cloudDelete(d);
   if(!silent){const f=document.getElementById("saved-flag");f.classList.add("show");setTimeout(()=>f.classList.remove("show"),1800);}
 }
 function scheduleAutosave(){if(suppressSave)return;clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>writeEntry(true),900);}
@@ -693,16 +721,142 @@ function exportPDF(){const dates=sortedDates();if(!dates.length){alert(t("noData
   document.getElementById("print-table-wrap").innerHTML=`<table class="print-table"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${String(r[c]??"").replace(/</g,"&lt;")}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
   setTimeout(()=>window.print(),120);}
 
-const PASSCODE="555";
-const UNLOCK_KEY="innerWeather.unlocked";
-function isUnlocked(){try{return localStorage.getItem(UNLOCK_KEY)==="1";}catch(e){return false;}}
-function unlockApp(){const ls=document.getElementById("lock-screen");if(ls)ls.classList.add("hide");document.body.classList.remove("locked");}
-function tryUnlock(){const inp=document.getElementById("lock-input");const v=(inp.value||"").trim();
-  if(v===PASSCODE){try{localStorage.setItem(UNLOCK_KEY,"1");}catch(e){}document.getElementById("lock-err").textContent="";unlockApp();}
-  else{document.getElementById("lock-err").textContent=t("lockErr");inp.value="";inp.focus();}}
-function initLock(){if(isUnlocked()){unlockApp();}else{document.body.classList.add("locked");const i=document.getElementById("lock-input");if(i)i.focus();}}
+/* ============================================================
+   CLOUD SYNC — paste your two Supabase values on the next 2 lines
+   (Project Settings → API: "Project URL" and "anon public" key)
+   ============================================================ */
+const SUPABASE_URL = "https://fvukhnxxpnepqolxyigw.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_vXi71Von3iPqRUmRVFX-mw_WqyDX392";
 
-(function init(){fillTimeSelects();document.getElementById("entry-date").value=todayStr();initRange();applyI18n();initLock();syncRangeInputs();loadEntry();})();
+let sb=null, currentUser=null, authMode="signin", realtimeChan=null, applyingRemote=false;
+function configFilled(){return !/PASTE_YOUR/.test(SUPABASE_ANON_KEY);}
+function showAuth(){const a=document.getElementById("auth-screen");if(a)a.classList.remove("hide");document.body.classList.add("locked");
+  const so=document.getElementById("signout-btn");if(so)so.style.display="none";}
+function hideAuth(){const a=document.getElementById("auth-screen");if(a)a.classList.add("hide");document.body.classList.remove("locked");
+  const so=document.getElementById("signout-btn");if(so)so.style.display="";}
+function setAuthErr(m){const e=document.getElementById("auth-err");if(e)e.textContent=m||"";}
+function authToggle(){authMode=authMode==="signin"?"signup":"signin";setAuthErr("");
+  document.getElementById("auth-sub").textContent=t(authMode==="signin"?"authSignInSub":"authSignUpSub");
+  document.getElementById("auth-btn").textContent=t(authMode==="signin"?"authSignIn":"authSignUp");
+  document.getElementById("auth-toggle-text").textContent=t(authMode==="signin"?"authNeedAccount":"authHaveAccount");
+  document.getElementById("auth-toggle-link").textContent=t(authMode==="signin"?"authSignUpLink":"authSignInLink");}
+async function authSubmit(){
+  if(!sb){setAuthErr(t("authNotConfigured"));return;}
+  const email=(document.getElementById("auth-email").value||"").trim();
+  const pass=document.getElementById("auth-pass").value||"";
+  if(!email||!pass){setAuthErr(t("authMissing"));return;}
+  setAuthErr(t("authWorking"));
+  try{
+    const res=authMode==="signup"
+      ? await sb.auth.signUp({email,password:pass})
+      : await sb.auth.signInWithPassword({email,password:pass});
+    if(res.error){setAuthErr(res.error.message);return;}
+    if(authMode==="signup" && res.data && !res.data.session){setAuthErr(t("authCheckEmail"));return;}
+    setAuthErr("");
+  }catch(e){setAuthErr(String(e&&e.message||e));}
+}
+async function onSignedIn(session){
+  if(currentUser)return; currentUser=session.user; setAuthErr(""); hideAuth();
+  await loadFromCloud(); subscribeRealtime();
+}
+function onSignedOut(){
+  currentUser=null;
+  if(realtimeChan){try{sb.removeChannel(realtimeChan);}catch(e){} realtimeChan=null;}
+  entries={};saveAll(entries);renderSummary();loadEntry();showAuth();
+}
+async function signOut(){if(sb){try{await sb.auth.signOut();}catch(e){}}}
+async function loadFromCloud(){
+  if(!sb||!currentUser)return;
+  try{const {data,error}=await sb.from("entries").select("date,data");if(error)throw error;
+    const obj={};(data||[]).forEach(r=>{obj[r.date]=r.data;});
+    entries=obj;saveAll(entries);renderSummary();loadEntry();}catch(e){/* keep local cache */}
+}
+async function cloudUpsert(date,data){
+  if(!sb||!currentUser||applyingRemote)return;
+  try{await sb.from("entries").upsert({user_id:currentUser.id,date,data,updated_at:new Date().toISOString()},{onConflict:"user_id,date"});}catch(e){}
+}
+async function cloudDelete(date){
+  if(!sb||!currentUser||applyingRemote)return;
+  try{await sb.from("entries").delete().eq("date",date);}catch(e){}
+}
+function subscribeRealtime(){
+  if(!sb||realtimeChan)return;
+  try{realtimeChan=sb.channel("entries-sync")
+    .on("postgres_changes",{event:"*",schema:"public",table:"entries"},payload=>{
+      applyingRemote=true;
+      try{
+        const nw=payload.new,od=payload.old;
+        const cur=document.getElementById("entry-date").value;
+        if(payload.eventType==="DELETE"){
+          if(od&&od.date){const existed=entries[od.date]!==undefined;delete entries[od.date];saveAll(entries);renderSummary();if(od.date===cur&&existed)loadEntry();}
+        }else if(nw&&nw.date){
+          const prev=entries[nw.date];
+          const isEcho=prev&&prev.savedAt&&nw.data&&prev.savedAt===nw.data.savedAt;
+          entries[nw.date]=nw.data;saveAll(entries);renderSummary();
+          if(nw.date===cur&&!isEcho)loadEntry();
+        }
+      }finally{applyingRemote=false;}
+    }).subscribe();
+  }catch(e){}
+}
+async function initAuth(){
+  if(!configFilled()||typeof window.supabase==="undefined"){
+    showAuth();setAuthErr(t("authNotConfigured"));
+    const b=document.getElementById("auth-btn");if(b)b.disabled=true;return;}
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+  sb.auth.onAuthStateChange((event,session)=>{
+    if(session&&session.user){onSignedIn(session);}
+    else if(event==="SIGNED_OUT"){onSignedOut();}
+  });
+  try{const {data}=await sb.auth.getSession();
+    if(data&&data.session){onSignedIn(data.session);}else{showAuth();}
+  }catch(e){showAuth();}
+}
+
+/* ---- automatic backup to a user-picked file (File System Access API) ---- */
+let backupHandle=null;
+const backupSupported=()=>("showSaveFilePicker" in window);
+function idbOpen(){return new Promise((res,rej)=>{try{const r=indexedDB.open("innerWeatherBackup",1);
+  r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e);}});}
+async function idbGet(k){try{const db=await idbOpen();return await new Promise(res=>{const g=db.transaction("kv","readonly").objectStore("kv").get(k);g.onsuccess=()=>res(g.result||null);g.onerror=()=>res(null);});}catch(e){return null;}}
+async function idbSet(k,v){try{const db=await idbOpen();return await new Promise(res=>{const tx=db.transaction("kv","readwrite");tx.objectStore("kv").put(v,k);tx.oncomplete=()=>res(true);tx.onerror=()=>res(false);});}catch(e){return false;}}
+async function hasPerm(h,interactive){try{if(!h||!h.queryPermission)return!!h;const o={mode:"readwrite"};
+  if(await h.queryPermission(o)==="granted")return true;
+  if(interactive&&await h.requestPermission(o)==="granted")return true;return false;}catch(e){return false;}}
+function setBackupStatus(txt,ok){const el=document.getElementById("backup-status");if(el){el.textContent=txt;el.classList.toggle("ok",!!ok);}}
+function setBackupBtn(key){const b=document.getElementById("backup-connect");if(b)b.textContent=t(key);}
+function markConnected(){setBackupStatus(t("backupConnected")+" · "+(backupHandle?backupHandle.name:""),true);setBackupBtn("backupChange");}
+async function backupButtonClick(){
+  if(!backupSupported()){setBackupStatus(t("backupUnsupported"));return;}
+  if(backupHandle&&!(await hasPerm(backupHandle,false))){ if(await hasPerm(backupHandle,true)){markConnected();await doBackup();} return; }
+  try{
+    backupHandle=await window.showSaveFilePicker({suggestedName:"inner-weather-backup.xlsx",
+      types:[{description:"Excel",accept:{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx"]}}]});
+    await idbSet("handle",backupHandle);markConnected();await doBackup();
+  }catch(e){/* user cancelled the picker */}
+}
+async function doBackup(){
+  if(!backupHandle||typeof XLSX==="undefined")return;
+  if(!(await hasPerm(backupHandle,false))){setBackupStatus(t("backupReconnect"));setBackupBtn("backupReconnectBtn");return;}
+  try{
+    const rows=buildRows(true);
+    const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{}]);
+    ws["!cols"]=rows.length?Object.keys(rows[0]).map(k=>({wch:Math.max(k.length+2,12)})):[];
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,lang==="ja"?"こころの天気":"Inner Weather");
+    const buf=XLSX.write(wb,{type:"array",bookType:"xlsx"});
+    const w=await backupHandle.createWritable();await w.write(buf);await w.close();
+    const ts=new Date().toLocaleTimeString(lang==="ja"?"ja-JP":"en-US",{hour:"numeric",minute:"2-digit"});
+    setBackupStatus(t("backupSaved")+" "+ts,true);
+  }catch(e){setBackupStatus(t("backupReconnect"));setBackupBtn("backupReconnectBtn");}
+}
+async function initBackup(){
+  if(!backupSupported()){setBackupStatus(t("backupUnsupported"));const b=document.getElementById("backup-connect");if(b)b.disabled=true;return;}
+  const h=await idbGet("handle");
+  if(h){backupHandle=h; if(await hasPerm(h,false))markConnected(); else {setBackupStatus(t("backupReconnect"));setBackupBtn("backupReconnectBtn");} }
+  else setBackupStatus(t("backupOff"));
+}
+
+(function init(){fillTimeSelects();document.getElementById("entry-date").value=todayStr();initRange();applyI18n();syncRangeInputs();loadEntry();initBackup();initAuth();})();
 </script>
 </body>
 </html>

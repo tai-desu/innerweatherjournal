@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Nunito:wght@400;500;600;700;800&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
@@ -246,6 +246,20 @@
   .sun-caption{text-align:center; margin-top:6px; color:var(--ink-soft); font-weight:700; font-size:.9rem; line-height:1.35}
   .sun-caption .big{font-family:var(--font-display); font-weight:600; font-size:1.7rem; color:var(--sun); line-height:1.1}
   .sun-caption.reached .big{color:var(--leaf)}
+  /* share with family */
+  .share-head{display:flex; justify-content:space-between; align-items:flex-start; gap:14px}
+  .share-head h2{margin:0 0 4px}
+  .switch{position:relative; display:inline-block; width:46px; height:26px; flex:0 0 auto; margin-top:2px}
+  .switch input{opacity:0; width:0; height:0}
+  .switch .slider{position:absolute; inset:0; background:#cfd3d7; border-radius:999px; transition:.2s; cursor:pointer}
+  .switch .slider:before{content:""; position:absolute; width:20px; height:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s}
+  .switch input:checked + .slider{background:var(--leaf)}
+  .switch input:checked + .slider:before{transform:translateX(20px)}
+  .share-name-l{display:block; font-size:.78rem; font-weight:700; color:var(--ink-soft); margin:14px 0 5px}
+  .share-name{width:100%; max-width:260px; font-family:var(--font-body); font-weight:700; font-size:.92rem; color:var(--ink); border:1px solid var(--line); background:var(--mist); border-radius:12px; padding:8px 12px}
+  .share-linkrow{display:flex; gap:8px; margin-top:14px}
+  .share-link{flex:1; min-width:0; font-family:var(--font-body); font-size:.84rem; color:var(--ink); border:1px solid var(--line); background:var(--mist); border-radius:12px; padding:10px 12px}
+  #share-status{min-height:1em}
   /* ---- mobile readability ---- */
   @media(max-width:560px){
     .wrap{padding:16px 12px 64px}
@@ -279,6 +293,14 @@
     .print-table th{background:#f3efe7}
     .fw-hero,.fw-block{-webkit-print-color-adjust:exact; print-color-adjust:exact}
     .face-week{break-inside:avoid}}
+  #print-summary{display:none}
+  @media print{
+    @page{size:A4 portrait; margin:0}
+    html,body{margin:0; background:#fff !important}
+    body>*{display:none !important}
+    #print-summary{display:block !important; margin:0; width:210mm; height:297mm; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    #print-summary svg{display:block; width:210mm; height:297mm; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  }
 </style>
 </head>
 <body>
@@ -445,6 +467,25 @@
     </div>
   </div>
 
+  <div class="card no-print" id="share-card">
+    <div class="share-head">
+      <div>
+        <h2 data-i18n="shareTitle">Share with family</h2>
+        <p class="sub" data-i18n="shareSub">A live, read-only link to your weather box and sunny goal — no notes or private details.</p>
+      </div>
+      <label class="switch"><input type="checkbox" id="share-toggle" onchange="onShareToggle()"><span class="slider"></span></label>
+    </div>
+    <div class="share-body" id="share-body" style="display:none">
+      <label class="share-name-l" for="share-name" data-i18n="shareName">Shown to family as</label>
+      <input type="text" id="share-name" class="share-name" maxlength="24" oninput="onShareNameInput()" autocomplete="off">
+      <div class="share-linkrow">
+        <input type="text" id="share-link" class="share-link" readonly onclick="this.select()">
+        <button class="btn btn-soft" type="button" onclick="copyShareLink()" data-i18n="shareCopy">Copy</button>
+      </div>
+      <p class="footnote" id="share-status"></p>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -453,8 +494,8 @@ function wIcon(type,color){const c=color||"currentColor";
   if(type==="sunny")return `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="6" fill="${c}"/><g stroke="${c}" stroke-width="2" stroke-linecap="round"><line x1="16" y1="3" x2="16" y2="7"/><line x1="16" y1="25" x2="16" y2="29"/><line x1="3" y1="16" x2="7" y2="16"/><line x1="25" y1="16" x2="29" y2="16"/><line x1="7" y1="7" x2="9.5" y2="9.5"/><line x1="22.5" y1="22.5" x2="25" y2="25"/><line x1="25" y1="7" x2="22.5" y2="9.5"/><line x1="9.5" y1="22.5" x2="7" y2="25"/></g></svg>`;
   if(type==="rain")return `<svg viewBox="0 0 32 32"><path d="M9 18a5 5 0 0 1 .6-9.95A6 6 0 0 1 21.5 9 4.5 4.5 0 0 1 22 18H9z" fill="${c}" opacity=".85"/><g stroke="${c}" stroke-width="2" stroke-linecap="round"><line x1="11" y1="22" x2="10" y2="26"/><line x1="17" y1="22" x2="16" y2="26"/></g></svg>`;
   if(type==="heavyrain")return `<svg viewBox="0 0 32 32"><path d="M9 17a5 5 0 0 1 .6-9.95A6 6 0 0 1 21.5 8 4.5 4.5 0 0 1 22 17H9z" fill="${c}"/><g stroke="${c}" stroke-width="2" stroke-linecap="round"><line x1="9" y1="21" x2="8" y2="26"/><line x1="14" y1="21" x2="13" y2="27"/><line x1="19" y1="21" x2="18" y2="26"/><line x1="24" y1="21" x2="23" y2="27"/></g></svg>`;
-  return `<svg viewBox="0 0 32 32"><path d="M9 16a5 5 0 0 1 .6-9.95A6 6 0 0 1 21.5 7 4.5 4.5 0 0 1 22 16H9z" fill="${c}"/><path d="M16 17l-4 6h3l-1 5 5-7h-3l2-4z" fill="#F4A259"/></svg>`;}
-const WCOLORS={sunny:"#F4A259",rain:"#7FB3D5",heavyrain:"#5784AE",storm:"#8779A8"};
+  return `<svg viewBox="0 0 32 32"><path d="M9 16a5 5 0 0 1 .6-9.95A6 6 0 0 1 21.5 7 4.5 4.5 0 0 1 22 16H9z" fill="${c}"/><path d="M16 17l-4 6h3l-1 5 5-7h-3l2-4z" fill="#5F666E"/></svg>`;}
+const WCOLORS={sunny:"#F4A259",rain:"#878E96",heavyrain:"#878E96",storm:"#878E96"};
 
 const QUOTES=[
  {en:"Whatever the weather inside you today, you are not the storm — you are the sky it passes through.",ja:"今日のあなたの心がどんな天気でも、あなたは嵐そのものじゃない。嵐が通り過ぎていく、その空のほう。"},
@@ -493,6 +534,7 @@ const I18N={
    saveBtn:"Save today",savedMsg:"Saved ✓",lastSaved:"Last saved",continueHint:"You can save now and add more this evening — your morning entry will be waiting.",
    summaryTitle:"Your weather over time",summarySub:"A picture of the last few weeks.",
    sunGoalTitle:"Sunny goal",sunGoalSub:"Half-full is the goal — your sunny moods over the last 14 days.",sunGoalCount:"{n} of {t} check-ins sunny",sunGoalReached:"half full — goal reached ☀️",sunGoalGo:"keep filling toward the line",sunGoalEmpty:"Log a few days to start filling your hourglass.",
+   shareTitle:"Share with family",shareSub:"A live, read-only link to your weather box and sunny goal — no notes or private details.",shareCopy:"Copy",shareCopied:"Copied ✓",shareName:"Shown to family as",shareLiveNote:"Live — anyone with this link can see these two charts.",shareSignin:"Sign in first to create a family link.",
    seeExample:"See example data",clearExample:"Clear example",
    thisWeek:"This week",weekEmpty:"This week is just beginning",weekBright:"A brighter week",weekSteady:"A steady week",weekTough:"A tougher week — be kind to yourself",weekTally:"{b} bright · {o} okay · {t} tough",
    domHeadline:{storm:"A stormy week — be kind to yourself",heavyrain:"A lot of heavy rain",rain:"Mostly rain",sunny:"Mostly sunny"},weekReadings:"{n} of {t} readings",sleepTitle:"Sleep — when you slept",sleepHoursUnit:"hours",legendSleep:"went to sleep",legendWake:"woke up",actQuick:"Quick add",actChips:["Study","Gym","Walk","Cook","Hangout","Reading","Work"],
@@ -523,6 +565,7 @@ const I18N={
    saveBtn:"今日を保存",savedMsg:"保存しました ✓",lastSaved:"最終保存",continueHint:"途中で保存して、夜にまた追記できます。朝の入力はそのまま残ります。",
    summaryTitle:"これまでのこころの天気",summarySub:"ここ数週間のようすです。",
    sunGoalTitle:"晴れの目標",sunGoalSub:"砂時計の半分が目標 — 直近14日間の「晴れ」。",sunGoalCount:"{t}回の記録中 {n}回が晴れ",sunGoalReached:"半分到達 — 目標達成 ☀️",sunGoalGo:"半分のラインを目指して",sunGoalEmpty:"数日記録すると砂時計がたまり始めます。",
+   shareTitle:"家族と共有",shareSub:"天気ボックスと晴れの目標だけを見られる、リアルタイムのリンク（メモや詳細は含みません）。",shareCopy:"コピー",shareCopied:"コピーしました ✓",shareName:"家族への表示名",shareLiveNote:"ライブ — リンクを知っている人がこの2つのグラフを見られます。",shareSignin:"共有するにはまずサインインしてください。",
    seeExample:"サンプルを見る",clearExample:"サンプルを消す",
    thisWeek:"今週",weekEmpty:"今週はこれから",weekBright:"明るい一週間",weekSteady:"おだやかな一週間",weekTough:"つらめの一週間。どうか自分にやさしく。",weekTally:"明るい日 {b}・ふつう {o}・つらい日 {t}",
    domHeadline:{storm:"嵐の多い一週間。どうか自分にやさしく。",heavyrain:"大雨が多めの一週間",rain:"雨が多めの一週間",sunny:"晴れが多めの一週間"},weekReadings:"{t}回中 {n}回",sleepTitle:"睡眠 — 就寝から起床まで",sleepHoursUnit:"時間",legendSleep:"就寝",legendWake:"起床",actQuick:"かんたん追加",actChips:["勉強","ジム","散歩","料理","外出","読書","仕事"],
@@ -609,7 +652,7 @@ function applyI18n(){
   document.querySelectorAll("[data-i18n-ph]").forEach(el=>{const k=el.getAttribute("data-i18n-ph");if(I18N[lang][k])el.placeholder=I18N[lang][k];});
   document.getElementById("lang-en").setAttribute("aria-pressed",lang==="en");
   document.getElementById("lang-ja").setAttribute("aria-pressed",lang==="ja");
-  showQuote();buildMoodBlock();renderActivities();renderChips();updateSleep();updateCare();renderSummary();updateLastSaved();
+  showQuote();buildMoodBlock();renderActivities();renderChips();updateSleep();updateCare();renderSummary();updateLastSaved();updateShareUI();
 }
 function setLang(l){lang=l;applyI18n();}
 function showQuote(){document.getElementById("greeting").textContent=t("greet");document.getElementById("quote-text").textContent=QUOTES[dayOfYear(new Date())%QUOTES.length][lang];}
@@ -661,6 +704,7 @@ function writeEntry(silent){
   saveAll(entries);updateLastSaved();renderSummary();
   doBackup();
   if(had)cloudUpsert(d,entries[d]);else cloudDelete(d);
+  if(shareOn)shareUpsert();
   if(!silent){const f=document.getElementById("saved-flag");f.classList.add("show");setTimeout(()=>f.classList.remove("show"),1800);}
 }
 function scheduleAutosave(){if(suppressSave)return;clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>writeEntry(true),900);}
@@ -695,7 +739,7 @@ function setRange(which){
 function rangeDates(){return sortedDates().filter(d=>d>=rangeStart&&d<=rangeEnd);}
 
 /* ---- weekly weather box + sleep timeline (softened palette) ---- */
-const FACECOL={1:"#B3A4D0",2:"#97B5D4",3:"#AFD6E8",4:"#F7C985"};
+const FACECOL={1:"#9CA3AB",2:"#BCC2C8",3:"#DCDFE3",4:"#F7C985"};  // storm/heavyrain/rain = grey, sunny = gold
 const wColor=w=>FACECOL[WEATHER.indexOf(w)+1];
 function weekDates(){const t0=new Date();const off=(t0.getDay()+6)%7;const mon=new Date(t0);mon.setDate(t0.getDate()-off);
   return [...Array(7)].map((_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});}
@@ -764,7 +808,7 @@ function renderSleep(){
       s+=`<text x="${cx}" y="${baseHours}" font-size="11.5" fill="${st==="ok"?"#36404A":col.dot}" text-anchor="middle" font-weight="700">${sleepHours(e.bed,e.wake)}</text>`;}
     s+=`<text x="${cx}" y="${baseDate}" font-size="9.5" fill="#b3b8bd" text-anchor="middle">${d.slice(5)}</text>`;
     const w=e.night||e.pm||e.am;
-    if(w)s+=wIcon(w,w==="sunny"?WCOLORS.sunny:"#878E96").replace('<svg ',`<svg x="${cx-isz/2}" y="${iconY}" width="${isz}" height="${isz}" `);
+    if(w)s+=wIcon(w,WCOLORS[w]).replace('<svg ',`<svg x="${cx-isz/2}" y="${iconY}" width="${isz}" height="${isz}" `);
     if(e.anx||e.low||e.dark)s+=`<text x="${cx}" y="${markY}" font-size="15" text-anchor="middle" aria-label="caring check-in">\u{1F6A8}</text>`;});
   s+=`</svg>`;
   host.innerHTML=`<div class="sleep-legend"><span class="sl-dot"></span>${t("legendSleep")}<span class="sl-arrow">→</span><span class="sl-dot"></span>${t("legendWake")}<span class="sl-unit">·&nbsp;${t("sleepHoursUnit")}</span></div>`+s;
@@ -837,16 +881,198 @@ function buildRows(includePrivate){const th=I18N[lang].th,Y=t("yes"),N=t("no");
     [th.bed]:e.bed||"",[th.wake]:e.wake||"",[th.sleep]:sleepHours(e.bed,e.wake)??"",
     [th.b]:e.b?Y:N,[th.l]:e.l?Y:N,[th.d]:e.d?Y:N,[th.act]:actsToText(e),[th.notes]:e.notes||""};
     if(includePrivate){row[th.anx]=e.anx?Y:N;row[th.low]=e.low?Y:N;row[th.dark]=e.dark?Y:N;}return row;});}
-function exportExcel(){const rows=buildRows(chk("include-private"));if(!rows.length){alert(t("noData"));return;}
-  if(typeof XLSX==="undefined"){alert(lang==="ja"?"Excelの書き出しにはインターネット接続が必要です。":"Excel export needs an internet connection to load its library.");return;}
-  const ws=XLSX.utils.json_to_sheet(rows);ws["!cols"]=Object.keys(rows[0]).map(k=>({wch:Math.max(k.length+2,12)}));
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,lang==="ja"?"こころの天気":"Inner Weather");
-  XLSX.writeFile(wb,`inner-weather_${todayStr()}.xlsx`);}
-function exportPDF(){const dates=sortedDates();if(!dates.length){alert(t("noData"));return;}
-  document.getElementById("print-header").innerHTML=`<h2 style="font-family:var(--font-display);margin:0 0 4px">${t("reportTitle")}</h2><p style="color:#6B7682;margin:0;font-size:12px">${t("reportRange")}: ${dates[0]} → ${dates[dates.length-1]} · ${t("reportGen")}: ${todayStr()}</p>`;
-  const rows=buildRows(chk("include-private"));const cols=Object.keys(rows[0]);
-  document.getElementById("print-table-wrap").innerHTML=`<table class="print-table"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${String(r[c]??"").replace(/</g,"&lt;")}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-  setTimeout(()=>window.print(),120);}
+/* ===== INSIGHT SUMMARY + EXPORT (Excel sheet1 raw / sheet2 visual; PDF = sheet2) ===== */
+function loc(en,ja){return lang==="ja"?ja:en;}
+const SUMMARY_WINDOW=30;
+
+function entriesWindow(nDays){
+  const end=todayStr(), start=addDays(end,-(nDays-1));
+  return Object.keys(entries).filter(d=>d>=start&&d<=end).sort()
+    .map(d=>Object.assign({date:d},entries[d]));
+}
+function computeInsights(nDays){
+  const win=entriesWindow(nDays);
+  const slots=[]; win.forEach(e=>[e.am,e.pm,e.night].forEach(w=>{if(w)slots.push(w);}));
+  const cnt={sunny:0,rain:0,heavyrain:0,storm:0}; slots.forEach(w=>cnt[w]++);
+  const total=slots.length||1;
+  const sleeps=win.map(e=>sleepHours(e.bed,e.wake)).filter(h=>h!=null);
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+  const avgSleep=Math.round(avg(sleeps)*10)/10;
+  const shortNights=sleeps.filter(h=>h<6.5).length;
+  const mealSlots=(win.length*3)||1;
+  const mealsHad=win.reduce((s,e)=>s+(e.b?1:0)+(e.l?1:0)+(e.d?1:0),0);
+  const mealsPct=Math.round(100*mealsHad/mealSlots);
+  const anxDays=win.filter(e=>e.anx).length;
+  const lowDays=win.filter(e=>e.low).length;
+  const darkList=win.filter(e=>e.dark).map(e=>e.date);
+  const flagDays=win.filter(e=>e.anx||e.low||e.dark).length;
+  const overlap=win.filter(e=>e.low&&(sleepHours(e.bed,e.wake)??9)<6.5).length;
+  let stk=0,mx=0; win.forEach(e=>{stk=e.low?stk+1:0; if(stk>mx)mx=stk;});
+  const mid=Math.floor(win.length/2), fh=win.slice(0,mid), sh=win.slice(mid);
+  const sunOf=arr=>{let t=0,s=0;arr.forEach(e=>[e.am,e.pm,e.night].forEach(w=>{if(w){t++;if(w==="sunny")s++;}}));return t?s/t:0;};
+  const slpOf=arr=>avg(arr.map(e=>sleepHours(e.bed,e.wake)).filter(h=>h!=null));
+  const e14=todayStr(), s14=addDays(e14,-13); let s14n=0,t14=0;
+  Object.keys(entries).forEach(d=>{if(d<s14||d>e14)return;const e=entries[d];if(!e)return;[e.am,e.pm,e.night].forEach(w=>{if(w){t14++;if(w==="sunny")s14n++;}});});
+  return {win,cnt,total,sunnyShare:cnt.sunny/total,avgSleep,shortNights,mealsPct,
+    anxDays,lowDays,darkList,flagDays,overlap,lowStreak:mx,
+    sun1:sunOf(fh),sun2:sunOf(sh),slp1:slpOf(fh),slp2:slpOf(sh),
+    sun14:{sunny:s14n,total:t14,pct:t14?s14n/t14:0}};
+}
+
+function buildSummarySVG(ins){
+  const INK="#36404A",SOFT="#6B7682",LINE="#E7ECF1",CARD="#FFFFFF",SKY="#F7FAFC";
+  const SUNNY="#F4A259",GREEN="#5F9D77",WARN="#E0A23B",RED="#D9655F",GREY="#BFC5CC",DOTG="#878E96",DOTA="#CF9520";
+  const SEV={sunny:"#F4A259",rain:"#C4CAD0",heavyrain:"#9098A0",storm:"#5F666E"};
+  const SERIF="Fraunces, Georgia, serif", SANS="Nunito, Helvetica, Arial, sans-serif";
+  const win=ins.win, n=win.length, hasDark=ins.darkList.length>0;
+  const W=820, P=28;
+  const cL=P+38, cR=W-P-38, cW=cR-cL, bw=cW/(n||1), colX=i=>cL+(i+0.5)*bw;
+  const chipsY=90, chipsH=84, GAP=18, footPad=42, HTARGET=1160; // HTARGET fills A4 at 8mm
+  const goalH=172, moodH=156;
+  const goalY=chipsY+chipsH+GAP, moodY=goalY+goalH+GAP, sleepY=moodY+moodH+GAP;
+  const panelH=54+(hasDark?64:0)+3*46+16;
+  const fixedRest=sleepY+GAP+panelH+footPad;            // everything except the sleep card
+  const sleepH=Math.min(356,Math.max(262,HTARGET-fixedRest));
+  const wellY=sleepY+sleepH+GAP, H=wellY+panelH+footPad;
+  const S=[];
+  const R=(x,y,w,h,r,fill,st,sw)=>S.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r==null?16:r}" fill="${fill||CARD}" stroke="${st||LINE}" stroke-width="${sw||1}"/>`);
+  const T=(x,y,t,sz,fill,w,anc,fam)=>S.push(`<text x="${x}" y="${y}" font-size="${sz||13}" fill="${fill||INK}" font-weight="${w||"normal"}" text-anchor="${anc||"start"}" font-family="${fam||SANS}">${t}</text>`);
+  const dateRow=yy=>win.forEach((e,i)=>{if(n<=14||i%5===0)T(colX(i),yy,e.date.slice(5),10,SOFT,"normal","middle");});
+  function drawHourglass(ox,oy,k,pct){
+    const colGap=22,rowGap=27,topPad=22,cx=130,dotR=8,rows=[6,5,4,3,2,1,2,3,4,5,6],neckIdx=5;
+    const Hh=topPad+(rows.length-1)*rowGap+topPad, dots=[];
+    rows.forEach((c,ri)=>{const y=topPad+ri*rowGap, sx=cx-(c-1)*colGap/2;for(let i=0;i<c;i++)dots.push({x:sx+i*colGap,y,ri,i});});
+    const order=[];
+    for(let ri=rows.length-1;ri>=0;ri--){const rd=dots.filter(d=>d.ri===ri),cidx=(rows[ri]-1)/2;rd.sort((a,b)=>Math.abs(a.i-cidx)-Math.abs(b.i-cidx));rd.forEach(d=>order.push(d));}
+    const lit=Math.round(pct*dots.length);
+    order.forEach((d,j)=>{d.lit=j<lit;d.leading=(j===lit-1);});
+    const midY=topPad+neckIdx*rowGap, topY=topPad-12, botY=Hh-topPad+12;
+    const topW=148,neckW=30,lx=cx-topW/2,rx=cx+topW/2,nlx=cx-neckW/2,nrx=cx+neckW/2;
+    S.push(`<g transform="translate(${ox},${oy}) scale(${k})">`);
+    S.push(`<path d="M ${lx} ${topY} L ${nlx} ${midY} L ${lx} ${botY} L ${rx} ${botY} L ${nrx} ${midY} L ${rx} ${topY} Z" fill="rgba(54,64,74,.03)" stroke="rgba(54,64,74,.22)" stroke-width="1.4" stroke-linejoin="round"/>`);
+    S.push(`<line x1="${lx-6}" y1="${midY}" x2="${rx+6}" y2="${midY}" stroke="#79B591" stroke-width="1.5" stroke-dasharray="5 4" opacity=".9"/>`);
+    S.push(`<text x="${rx+9}" y="${midY+5}" font-size="12" fill="#5f9d77" font-weight="800" font-family="${SANS}">50%</text>`);
+    dots.forEach(d=>{
+      if(d.lit){
+        if(d.leading){S.push(`<circle cx="${d.x}" cy="${d.y}" r="${dotR+4}" fill="none" stroke="#F4A259" stroke-width="1.6" opacity=".45"/>`);S.push(`<circle cx="${d.x}" cy="${d.y}" r="${dotR+1}" fill="#F6B25E"/>`);}
+        else S.push(`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="#F4A259"/>`);
+      } else S.push(`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="none" stroke="rgba(54,64,74,.2)" stroke-width="1.3"/>`);
+    });
+    S.push(`</g>`);
+  }
+  S.push(`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`);
+  S.push(`<rect width="${W}" height="${H}" fill="${SKY}"/>`);
+  T(P,54,loc("Inner Weather","こころの天気"),28,INK,"600","start",SERIF);
+  const d0=win.length?win[0].date:"", d1=win.length?win[n-1].date:"";
+  T(P,80,`Tai · ${d0} → ${d1} · ${loc(n+" days logged",n+"日分")}`,13,SOFT);
+  // chips
+  const arr=(a,b)=>b<a?"▼":(b>a?"▲":"→");
+  const chips=[
+    [loc("Avg sleep","平均睡眠"),`${ins.avgSleep}h`,`${arr(ins.slp1,ins.slp2)} ${Math.abs(Math.round((ins.slp2-ins.slp1)*10)/10)}h ${loc("vs 1st half","前半比")}`,ins.slp2<ins.slp1?RED:GREEN],
+    [loc("Sunny share","晴れの割合"),`${Math.round(ins.sunnyShare*100)}%`,`${arr(ins.sun1,ins.sun2)} ${Math.abs(Math.round((ins.sun2-ins.sun1)*100))}pt`,ins.sun2<ins.sun1?RED:GREEN],
+    [loc("Meals eaten","食事"),`${ins.mealsPct}%`,`${ins.shortNights} ${loc("short nights","短い夜")}`,ins.mealsPct<80?WARN:GREEN],
+    [loc("Flag days","注意日"),`${ins.flagDays}`,`${loc("of","/")} ${n} ${loc("days","日")}`,ins.flagDays>5?RED:WARN]
+  ];
+  const cw=(W-2*P-3*14)/4;
+  chips.forEach((c,i)=>{const x=P+i*(cw+14);R(x,chipsY,cw,chipsH);T(x+16,chipsY+24,c[0],12,SOFT);T(x+16,chipsY+58,c[1],32,INK,"700");T(x+16,chipsY+78,c[2],11,c[3],"700");});
+  // sunny-mood goal (recent 14 days) — stats left, hourglass right
+  R(P,goalY,W-2*P,goalH);
+  T(P+16,goalY+26,loc("Sunny-mood goal","晴れの気分の目標"),15,INK,"700");
+  T(P+16,goalY+46,loc("recent 14 days · aim for 50% sunny","直近14日 · 目標は晴れ50%"),11,SOFT);
+  const g=ins.sun14, gpct=Math.round(g.pct*100), reached=g.pct>=0.5;
+  T(P+24,goalY+94,gpct+"%",42,reached?GREEN:SUNNY,"700","start",SERIF);
+  T(P+24,goalY+120,`${g.sunny} ${loc("of","/")} ${g.total} ${loc("mood slots sunny","スロットが晴れ")}`,12,SOFT);
+  T(P+24,goalY+144,reached?loc("Goal reached ✓","目標達成 ✓"):loc("Keep going — aim for 50%","あと少し — 目標は50%"),13,reached?GREEN:WARN,"700");
+  drawHourglass(P+525,goalY+24,0.46,g.pct);
+  // mood over time
+  R(P,moodY,W-2*P,moodH);
+  T(P+16,moodY+26,loc("Mood over time","気分の推移"),15,INK,"700");
+  T(P+16,moodY+44,loc("each day: morning · afternoon · night","各日：朝・昼・夜"),11,SOFT);
+  win.forEach((e,i)=>{const x=cL+i*bw;["am","pm","night"].forEach((sl,j)=>{const w=e[sl];if(w)S.push(`<rect x="${(x+1).toFixed(1)}" y="${moodY+54+j*20}" width="${(bw-2).toFixed(1)}" height="18" rx="3" fill="${SEV[w]}"/>`);});});
+  let lx=P+16;[["sunny",loc("Sunny","晴")],["rain",loc("Rain","雨")],["heavyrain",loc("Heavy","大雨")],["storm",loc("Storm","嵐")]].forEach(([k,nm])=>{S.push(`<rect x="${lx}" y="${moodY+124}" width="12" height="12" rx="3" fill="${SEV[k]}"/>`);T(lx+17,moodY+134,nm,11,SOFT);lx+=70;});
+  dateRow(moodY+152);
+  // sleep — went to sleep -> woke up (web-style timeline, hourly axis, fills available height)
+  R(P,sleepY,W-2*P,sleepH);
+  T(P+16,sleepY+26,loc("Sleep — went to sleep \u2192 woke up","\u7761\u7720 \u2014 \u5c31\u5bdd \u2192 \u8d77\u5e8a"),15,INK,"700");
+  T(P+16,sleepY+44,`${loc("avg","\u5e73\u5747")} ${ins.avgSleep}h \u00b7 ${loc("target 6.5\u20138h","\u76ee\u6a19 6.5\u20138h")} \u00b7 ${ins.shortNights} ${loc("nights under 6.5h","\u665a 6.5h\u672a\u6e80")}`,11,SOFT);
+  S.push(`<circle cx="${W-P-150}" cy="${sleepY+22}" r="4" fill="${DOTG}"/>`);T(W-P-142,sleepY+26,loc("sleep","\u5c31\u5bdd"),10,SOFT);
+  S.push(`<circle cx="${W-P-92}" cy="${sleepY+22}" r="4" fill="${DOTG}"/>`);T(W-P-84,sleepY+26,loc("wake","\u8d77\u5e8a"),10,SOFT);
+  const sOrig=21, sSpan=840, plotTop=sleepY+62, plotBot=sleepY+sleepH-30, plotH=plotBot-plotTop;
+  const sMin=tt=>{const[h,m]=tt.split(":").map(Number);return ((h-sOrig+24)%24)*60+m;};
+  const yT=mm=>plotTop+(Math.max(0,Math.min(sSpan,mm))/sSpan)*plotH;
+  for(let m=0;m<=sSpan;m+=60){const yy=yT(m);const hh=((sOrig+m/60)%24);
+    T(cL-7,yy+3,String(hh).padStart(2,"0")+":00",9,"#9aa0a6","normal","end");}
+  const z1=yT(120),z2=yT(600);
+  S.push(`<rect x="${cL}" y="${z1.toFixed(1)}" width="${cW.toFixed(1)}" height="${(z2-z1).toFixed(1)}" fill="#79B591" opacity="0.08"/>`);
+  [120,600].forEach(z=>{const yy=yT(z);S.push(`<line x1="${cL}" y1="${yy.toFixed(1)}" x2="${cR}" y2="${yy.toFixed(1)}" stroke="#79B591" stroke-dasharray="5 4" stroke-width="1.2" opacity="0.55"/>`);});
+  const lw=Math.min(12,bw*0.5), rdot=Math.max(2.6,lw*0.34);
+  win.forEach((e,i)=>{const cx=colX(i);
+    if(e.bed&&e.wake){const hh=sleepHours(e.bed,e.wake),yb=yT(sMin(e.bed)),yw=yT(sMin(e.wake)),col=hh<6.5?GREY:SUNNY,dc=hh<6.5?DOTG:DOTA;
+      S.push(`<line x1="${cx.toFixed(1)}" y1="${yb.toFixed(1)}" x2="${cx.toFixed(1)}" y2="${yw.toFixed(1)}" stroke="${col}" stroke-width="${lw.toFixed(1)}" stroke-linecap="round"/>`);
+      S.push(`<circle cx="${cx.toFixed(1)}" cy="${yb.toFixed(1)}" r="${rdot.toFixed(1)}" fill="${dc}"/><circle cx="${cx.toFixed(1)}" cy="${yw.toFixed(1)}" r="${rdot.toFixed(1)}" fill="${dc}"/>`);}});
+  dateRow(sleepY+sleepH-10);
+  // wellbeing
+  const y2=wellY;R(P,y2,W-2*P,panelH,16,"#FFFBFA","#F0D9D7");
+  T(P+16,y2+30,loc("Wellbeing — signs to watch","こころ — 気をつけたいサイン"),15,INK,"700");
+  let yy=y2+54;
+  if(hasDark){
+    R(P+16,yy,W-2*P-32,52,12,"#FCEDEC","#E7BDBA");
+    T(P+30,yy+22,loc("⚠  Self-harm thoughts logged","⚠  自傷の考えが記録されています"),13,"#B23B36","700");
+    T(P+30,yy+40,`${ins.darkList.length} ${loc("day(s)","日")}: ${ins.darkList.map(d=>d.slice(5)).join(", ")}  ·  ${loc("Yorisoi 0120-279-338 · Inochi no Denwa 0570-783-556 · TELL 03-5774-0992","よりそい 0120-279-338 ・ いのちの電話 0570-783-556 ・ TELL 03-5774-0992")}`,10.5,"#8a4a47");
+    yy+=64;
+  }
+  const rows=[
+    [loc("Low mood","気分の落ち込み"),ins.lowDays,`${loc("longest run","最長連続")} ${ins.lowStreak} ${loc("days in a row","日")}`,ins.lowStreak>=3?RED:WARN],
+    [loc("Anxiety","不安"),ins.anxDays,`${n?Math.round(100*ins.anxDays/n):0}% ${loc("of days","の日")}`,WARN],
+    [loc("Short sleep + low mood","睡眠不足＋落ち込み"),ins.overlap,loc("days with both","両方あった日"),WARN]
+  ];
+  rows.forEach(r=>{R(P+16,yy,W-2*P-32,40,12);S.push(`<circle cx="${P+38}" cy="${yy+20}" r="5" fill="${r[3]}"/>`);T(P+56,yy+18,r[0],13,INK,"700");T(P+56,yy+33,r[2],11,SOFT);T(W-P-30,yy+25,String(r[1]),20,r[3],"700","end");yy+=46;});
+  T(P,H-22,loc("Generated from your private journal · for personal and medical review","あなたの記録から作成 · 個人および医療の確認用"),11,SOFT);
+  S.push("</svg>");
+  return {svg:S.join(""),w:W,h:H};
+}
+function buildRawMatrix(inc){
+  const th=I18N[lang].th,Y=t("yes"),N=t("no");
+  const header=[th.date,th.am,th.pm,th.night,th.bed,th.wake,th.sleep,th.b,th.l,th.d,th.act,th.notes];
+  const rows=sortedDates().map(d=>{const e=entries[d];const r=[d,e.am?weatherLabel(e.am):"",e.pm?weatherLabel(e.pm):"",e.night?weatherLabel(e.night):"",e.bed||"",e.wake||"",sleepHours(e.bed,e.wake)??"",e.b?Y:N,e.l?Y:N,e.d?Y:N,actsToText(e),e.notes||""];
+    if(inc){r.push(e.anx?Y:N,e.low?Y:N,e.dark?Y:N);}return r;});
+  if(inc){header.push(th.anx,th.low,th.dark);}
+  return {header,rows,flagCols:inc?[12,13,14]:[],Y};
+}
+function svgToPng(svg,w,h){return new Promise(function(res,rej){
+  const ready=(document.fonts&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
+  let started=false;
+  const go=function(){ if(started)return; started=true;
+    const img=new Image();img.width=w;img.height=h;
+    const blob=new Blob([svg],{type:"image/svg+xml;charset=utf-8"}),url=URL.createObjectURL(blob);
+    img.onload=function(){const sc=3,cv=document.createElement("canvas");cv.width=w*sc;cv.height=h*sc;const cx=cv.getContext("2d");cx.fillStyle="#ffffff";cx.fillRect(0,0,cv.width,cv.height);cx.setTransform(sc,0,0,sc,0,0);cx.drawImage(img,0,0,w,h);URL.revokeObjectURL(url);try{res(cv.toDataURL("image/png"));}catch(e){rej(e);}};
+    img.onerror=function(){URL.revokeObjectURL(url);rej(new Error("svg"));};img.src=url;
+  };
+  Promise.race([ready,new Promise(function(r){setTimeout(r,1500);})]).then(go,go);
+});}
+function downloadBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},1500);}
+async function exportExcel(){
+  if(typeof ExcelJS==="undefined"){alert(lang==="ja"?"Excelの書き出しにはインターネット接続が必要です。":"Excel export needs an internet connection to load its library.");return;}
+  if(!sortedDates().length){alert(t("noData"));return;}
+  const inc=chk("include-private"),wb=new ExcelJS.Workbook();
+  const ws1=wb.addWorksheet(loc("Raw data","生データ")),M=buildRawMatrix(inc);
+  ws1.addRow(M.header);M.rows.forEach(r=>ws1.addRow(r));
+  ws1.getRow(1).eachCell(c=>{c.font={bold:true,color:{argb:"FFFFFFFF"}};c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF36404A"}};});
+  ws1.columns.forEach((col,i)=>{let mx=String(M.header[i]||"").length;M.rows.forEach(r=>{const v=String(r[i]==null?"":r[i]);if(v.length>mx)mx=v.length;});col.width=Math.min(42,Math.max(10,mx+2));});
+  M.rows.forEach((r,ri)=>M.flagCols.forEach(ci=>{if(r[ci]===M.Y)ws1.getRow(ri+2).getCell(ci+1).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF7D4D1"}};}));
+  const ws2=wb.addWorksheet(loc("Summary","まとめ")),ins=computeInsights(SUMMARY_WINDOW),SV=buildSummarySVG(ins);
+  try{const png=await svgToPng(SV.svg,SV.w,SV.h),id=wb.addImage({base64:png.split(",")[1],extension:"png"});ws2.addImage(id,{tl:{col:0,row:0},ext:{width:SV.w,height:SV.h}});}
+  catch(e){ws2.getCell("A1").value=loc("Summary image could not be generated.","まとめ画像を生成できませんでした。");}
+  const buf=await wb.xlsx.writeBuffer();
+  downloadBlob(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),`inner-weather_${todayStr()}.xlsx`);
+}
+function exportPDF(){
+  const ins=computeInsights(SUMMARY_WINDOW);
+  if(!ins.win.length){alert(t("noData"));return;}
+  const SV=buildSummarySVG(ins);
+  document.getElementById("print-summary").innerHTML=SV.svg;
+  setTimeout(()=>window.print(),150);
+}
 
 /* ============================================================
    CLOUD SYNC — paste your two Supabase values on the next 2 lines
@@ -884,7 +1110,7 @@ async function authSubmit(){
 }
 async function onSignedIn(session){
   if(currentUser)return; currentUser=session.user; setAuthErr(""); hideAuth();
-  await loadFromCloud(); subscribeRealtime();
+  await loadFromCloud(); subscribeRealtime(); shareLoad();
 }
 function onSignedOut(){
   currentUser=null;
@@ -981,14 +1207,14 @@ async function backupButtonClick(){
   }catch(e){/* user cancelled the picker */}
 }
 async function doBackup(){
-  if(!backupHandle||typeof XLSX==="undefined")return;
+  if(!backupHandle||typeof ExcelJS==="undefined")return;
   if(!(await hasPerm(backupHandle,false))){setBackupStatus(t("backupReconnect"));setBackupBtn("backupReconnectBtn");return;}
   try{
-    const rows=buildRows(true);
-    const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{}]);
-    ws["!cols"]=rows.length?Object.keys(rows[0]).map(k=>({wch:Math.max(k.length+2,12)})):[];
-    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,lang==="ja"?"こころの天気":"Inner Weather");
-    const buf=XLSX.write(wb,{type:"array",bookType:"xlsx"});
+    const M=buildRawMatrix(true),wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet(lang==="ja"?"こころの天気":"Inner Weather");
+    ws.addRow(M.header);M.rows.forEach(r=>ws.addRow(r));
+    ws.getRow(1).eachCell(c=>{c.font={bold:true};});
+    const buf=await wb.xlsx.writeBuffer();
     const w=await backupHandle.createWritable();await w.write(buf);await w.close();
     const ts=new Date().toLocaleTimeString(lang==="ja"?"ja-JP":"en-US",{hour:"numeric",minute:"2-digit"});
     setBackupStatus(t("backupSaved")+" "+ts,true);
@@ -1030,7 +1256,81 @@ function setupSounds(){
     playClick();
   },true);
 }
+/* ---------- share with family (live, aggregate-only) ---------- */
+let shareSlug=localStorage.getItem("innerWeather.shareSlug")||"";
+let shareNameVal=localStorage.getItem("innerWeather.shareName")||"Tai";
+let shareOn=(localStorage.getItem("innerWeather.shareOn")==="1" && !!shareSlug);
+let shareNameTimer=null;
+function newSlug(){return Math.random().toString(36).slice(2,8)+Math.random().toString(36).slice(2,6);}
+function shareUrl(){try{return new URL("share.html?s="+shareSlug,location.href).href;}catch(e){return "share.html?s="+shareSlug;}}
+function buildShareSummary(){
+  const {sunny,total,pct}=sunnyStats();
+  const end=todayStr(),start=addDays(end,-13);
+  const weather={sunny:0,rain:0,heavyrain:0,storm:0};
+  Object.keys(entries).forEach(d=>{ if(d<start||d>end)return; const e=entries[d]; if(!e)return;
+    [e.am,e.pm,e.night].forEach(w=>{ if(w&&weather[w]!=null)weather[w]++; }); });
+  const ye=entries[addDays(end,-1)]||{};
+  return {name:(shareNameVal||"Tai").slice(0,24),lang,rangeStart:start,rangeEnd:end,
+    sunnyN:sunny,sunnyTotal:total,sunnyPct:pct,weather,
+    yesterday:{am:ye.am||null,pm:ye.pm||null,night:ye.night||null},
+    updatedAt:new Date().toISOString()};
+}
+function setShareStatus(msg,err){const el=document.getElementById("share-status");if(!el)return;el.textContent=msg||"";el.style.color=err?"#C0504D":"";}
+function updateShareUI(){
+  const tog=document.getElementById("share-toggle");if(!tog)return;
+  tog.checked=shareOn;
+  document.getElementById("share-body").style.display=shareOn?"block":"none";
+  const link=document.getElementById("share-link");if(link)link.value=shareOn?shareUrl():"";
+  const nm=document.getElementById("share-name");if(nm&&nm.value!==shareNameVal)nm.value=shareNameVal||"";
+  setShareStatus(shareOn?t("shareLiveNote"):"",false);
+}
+async function shareUpsert(){
+  if(!sb||!currentUser||!shareOn||!shareSlug)return;
+  try{const {error}=await sb.from("share_summary").upsert(
+    {slug:shareSlug,user_id:currentUser.id,data:buildShareSummary(),updated_at:new Date().toISOString()},
+    {onConflict:"slug"});if(error)throw error;}
+  catch(e){setShareStatus(t("syncErr")+(e&&e.message?": "+e.message:""),true);}
+}
+async function shareDelete(){
+  if(!sb||!currentUser||!shareSlug)return;
+  try{await sb.from("share_summary").delete().eq("slug",shareSlug);}catch(e){}
+}
+async function shareLoad(){
+  if(!sb||!currentUser)return;
+  try{const {data}=await sb.from("share_summary").select("slug,data").eq("user_id",currentUser.id).maybeSingle();
+    if(data&&data.slug){shareSlug=data.slug;localStorage.setItem("innerWeather.shareSlug",shareSlug);
+      localStorage.setItem("innerWeather.shareOn","1");shareOn=true;
+      if(data.data&&data.data.name)shareNameVal=data.data.name;}
+    else{shareOn=false;localStorage.setItem("innerWeather.shareOn","0");}}
+  catch(e){}
+  updateShareUI();
+}
+async function onShareToggle(){
+  const tog=document.getElementById("share-toggle");
+  if(tog.checked){
+    if(!sb||!currentUser){tog.checked=false;setShareStatus(t("shareSignin"),true);return;}
+    if(!shareSlug){shareSlug=newSlug();localStorage.setItem("innerWeather.shareSlug",shareSlug);}
+    shareOn=true;localStorage.setItem("innerWeather.shareOn","1");
+    updateShareUI();await shareUpsert();
+  }else{
+    shareOn=false;localStorage.setItem("innerWeather.shareOn","0");
+    await shareDelete();updateShareUI();
+  }
+}
+function copyShareLink(){
+  const link=document.getElementById("share-link");if(!link||!link.value)return;
+  link.select();
+  const done=()=>{setShareStatus(t("shareCopied"),false);setTimeout(()=>{if(shareOn)setShareStatus(t("shareLiveNote"),false);},1600);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(link.value).then(done).catch(()=>{try{document.execCommand("copy");done();}catch(e){}});}
+  else{try{document.execCommand("copy");done();}catch(e){}}
+}
+function onShareNameInput(){
+  shareNameVal=document.getElementById("share-name").value;
+  localStorage.setItem("innerWeather.shareName",shareNameVal);
+  if(shareOn){clearTimeout(shareNameTimer);shareNameTimer=setTimeout(shareUpsert,600);}
+}
 (function init(){fillTimeSelects();document.getElementById("entry-date").value=todayStr();initRange();applyI18n();syncRangeInputs();loadEntry();initBackup();initAuth();setupSounds();})();
 </script>
+<div id="print-summary"></div>
 </body>
 </html>

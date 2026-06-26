@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tai's Inner Weather Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Nunito:wght@400;500;600;700;800&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --paper:#FBF6EE; --sky-1:#FFE3C4; --sky-2:#CDE7F0; --sun:#F4A259; --ink:#36404A;
+    --ink-soft:#6B7682; --leaf:#79B591; --line:rgba(54,64,74,.12); --card:#FFFFFF;
+    --shadow:0 10px 30px -12px rgba(54,64,74,.22);
+    --font-display:"Fraunces",Georgia,serif; --font-body:"Nunito","Zen Maru Gothic",system-ui,sans-serif;
+  }
+  html[data-lang="ja"]{ --font-display:"Zen Maru Gothic","Nunito",system-ui,sans-serif; --font-body:"Zen Maru Gothic","Nunito",system-ui,sans-serif; }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:var(--font-body); color:var(--ink); line-height:1.5; -webkit-font-smoothing:antialiased;
+    background:radial-gradient(120% 60% at 50% -10%, var(--sky-1) 0%, transparent 55%),
+      radial-gradient(120% 70% at 90% 0%, var(--sky-2) 0%, transparent 45%), var(--paper); background-attachment:fixed;
+    min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:24px 16px 60px}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:24px; box-shadow:var(--shadow);
+    width:100%; max-width:560px; padding:26px 24px 22px}
+  .topline{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap}
+  h1{font-family:var(--font-display); font-weight:600; font-size:1.5rem; margin:0}
+  .range{font-size:.9rem; font-weight:700; color:var(--ink-soft); margin:3px 0 0}
+  .meta{display:flex; flex-direction:column; align-items:flex-end; gap:7px}
+  .live{display:flex; align-items:center; gap:6px; font-size:.78rem; font-weight:800; color:var(--leaf); white-space:nowrap}
+  .live .dot{width:7px; height:7px; border-radius:50%; background:var(--leaf)}
+  .live.sample{color:var(--ink-soft)} .live.sample .dot{background:var(--ink-soft)}
+  .today{display:flex; align-items:center; gap:16px; margin-top:18px; padding:13px 18px; background:#F4F1EA; border:1px solid var(--line); border-radius:16px; flex-wrap:wrap}
+  .today-label{font-weight:800; font-size:.82rem; color:var(--ink-soft); letter-spacing:.02em}
+  .today-slots{display:flex; gap:22px; margin-left:auto}
+  .today-slot{display:flex; flex-direction:column; align-items:center; gap:4px}
+  .today-slot svg{width:30px; height:30px; display:block}
+  .today-slot small{font-size:.66rem; font-weight:700; color:var(--ink-soft)}
+  .today-empty{width:24px; height:24px; border-radius:50%; border:2px dashed rgba(54,64,74,.22)}
+  .grid{display:flex; flex-direction:column; gap:22px; margin-top:22px}  @media(min-width:560px){ .grid{flex-direction:row; align-items:center; gap:26px} .grid .col{flex:1 1 0; min-width:0} }
+  .col{display:flex; flex-direction:column; align-items:center}
+  .cap{margin-top:8px; font-size:.82rem; color:var(--ink-soft); font-weight:700; text-align:center}
+  /* weather box (identical to app) */
+  .ww-stack{display:flex; flex-direction:column; width:min(100%,300px); aspect-ratio:1; margin:0 auto; border-radius:18px; overflow:hidden}
+  .ww-band{position:relative; min-height:58px; padding:8px 20px; overflow:hidden}
+  .ww-band-ic{position:absolute; left:20px; top:50%; transform:translateY(-50%)}
+  .ww-band-ic svg{width:28px; height:28px; display:block}
+  .ww-band-name{position:absolute; left:20px; bottom:7px; font-size:.61rem; font-weight:700; color:#36404A; opacity:.75}
+  .ww-pct{position:absolute; right:22px; top:50%; transform:translateY(-50%); font-family:var(--font-display); font-weight:600; font-size:1.35rem; color:#36404A}
+  .ww-band.dom .ww-band-ic svg{width:44px; height:44px}
+  .ww-band.dom .ww-pct{font-size:2.1rem}
+  /* hourglass */
+  .hg svg{width:100%; max-width:240px; height:auto; display:block; margin:0 auto}
+  .sun-cap{text-align:center; margin-top:4px; color:var(--ink-soft); font-weight:700; font-size:.88rem; line-height:1.35}
+  .sun-cap .big{font-family:var(--font-display); font-weight:600; font-size:1.6rem; color:var(--sun); line-height:1.1}
+  .sun-cap.reached .big{color:var(--leaf)}
+  .foot{margin:18px 0 0; text-align:center; font-size:.76rem; color:var(--ink-soft)}
+  .note{margin:22px 0 0; background:#FFF7EE; border:1px solid #F2E2CC; border-radius:16px; padding:18px 20px; text-align:center}
+  .note-text{margin:0; font-family:var(--font-display); font-weight:500; font-style:italic; font-size:1.04rem; color:var(--ink); line-height:1.55}
+  .note-sign{margin:9px 0 0; font-family:var(--font-display); font-weight:600; font-style:italic; font-size:.95rem; color:var(--ink-soft)}
+  .state{text-align:center; color:var(--ink-soft); font-weight:700; padding:40px 10px}
+</style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="topline">
+      <div class="who"><h1 id="title">—</h1><p class="range" id="range"></p></div>
+      <div class="meta">
+        <div class="live" id="live"><span class="dot"></span><span id="live-txt"></span></div>
+      </div>
+    </div>
+    <div id="content">
+      <div class="today" id="today"></div>
+      <div class="grid">
+        <div class="col"><div class="ww-stack" id="weatherbox"></div><div class="cap" id="cap-w"></div></div>
+        <div class="col"><div class="hg" id="hourglass"></div><div class="sun-cap" id="sun-cap"></div><div class="cap" id="cap-s"></div></div>
+      </div>
+      <div class="note" id="note"></div>
+      <p class="foot" id="foot"></p>
+    </div>
+  </div>
+
+<script>
+/* ---------- config ---------- */
+const SUPABASE_URL = "https://fvukhnxxpnepqolxyigw.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_vXi71Von3iPqRUmRVFX-mw_WqyDX392";
+
+/* ---------- sample data (used when no ?s= token) ---------- */
+const SAMPLE = {
+  name:"Tai", lang:"en", rangeStart:"2026-06-12", rangeEnd:"2026-06-25",
+  sunnyN:28, sunnyTotal:42, sunnyPct:28/42,
+  weather:{sunny:28, rain:10, heavyrain:2, storm:2},
+  yesterday:{am:"sunny", pm:"rain", night:"sunny"},
+  updatedAt:new Date().toISOString()
+};
+
+/* ---------- helpers (mirrored from the app) ---------- */
+function wIcon(type,color){const c=color||"#3A434D";
+  if(type==="sunny")return `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="6" fill="${c}"/><g stroke="${c}" stroke-width="2" stroke-linecap="round"><line x1="16" y1="3" x2="16" y2="7"/><line x1="16" y1="25" x2="16" y2="29"/><line x1="3" y1="16" x2="7" y2="16"/><line x1="25" y1="16" x2="29" y2="16"/><line x1="7" y1="7" x2="9.5" y2="9.5"/><line x1="22.5" y1="22.5" x2="25" y2="25"/><line x1="25" y1="7" x2="22.5" y2="9.5"/><line x1="9.5" y1="22.5" x2="7" y2="25"/></g></svg>`;
+  if(type==="rain")return `<svg viewBox="0 0 32 32"><path d="M9 18a5 5 0 0 1 .6-9.95A6 6 0 0 1 21.5 9 4.5 4.5 0 0 1 22 18H9z" fill="${c}" opacity=".85"/><g stroke="${c}" stroke-width="2" stroke-linecap="round"><line x1="11" y1="22" x2="10" y2="26"/><line x1="17" y1="22" x2="16" y2="26"/></g></svg>`;
+  if(type==="heavyrain")return `<svg viewBox="0 0 32 32"><path d="M9 17a5 5 0 0 1 .6-9.95A6 6 0 0 1 21.5 8 4.5 4.5 0 0 1 22 17H9z" fill="${c}"/><g stroke="${c}" stroke-width="2" stroke-linecap="round"><line x1="9" y1="21" x2="8" y2="26"/><line x1="14" y1="21" x2="13" y2="27"/><line x1="19" y1="21" x2="18" y2="26"/><line x1="24" y1="21" x2="23" y2="27"/></g></svg>`;
+  return `<svg viewBox="0 0 32 32"><path d="M9 16a5 5 0 0 1 .6-9.95A6 6 0 0 1 21.5 7 4.5 4.5 0 0 1 22 16H9z" fill="${c}"/><path d="M16 17l-4 6h3l-1 5 5-7h-3l2-4z" fill="#F4A259"/></svg>`;}
+const WEATHER=["storm","heavyrain","rain","sunny"];
+const FACECOL={1:"#9CA3AB", 2:"#BCC2C8", 3:"#DCDFE3", 4:"#F7C985"};  // storm/heavyrain/rain = grey, sunny = gold
+const wColor=w=>FACECOL[WEATHER.indexOf(w)+1];
+function pctRound(counts){const total=counts.reduce((a,b)=>a+b,0);let r=counts.map(c=>{let v=Math.round(c/total*20)*5;if(c>0&&v<5)v=5;return v;});let diff=100-r.reduce((a,b)=>a+b,0),g=0;while(diff!==0&&g++<60){if(diff>0){let bi=0,bv=-1e9;r.forEach((rv,i)=>{const e=counts[i]/total*100-rv;if(e>bv){bv=e;bi=i;}});r[bi]+=5;diff-=5;}else{let bi=0,bv=-1e9;r.forEach((rv,i)=>{const e=rv-counts[i]/total*100;if(e>bv&&rv>5){bv=e;bi=i;}});r[bi]-=5;diff+=5;}}return r;}
+
+const I18N={
+  en:{title:"{name}’s Inner Weather Report", range:"Last 14 days · {r}", live:"live · updated {t}", sample:"sample preview",
+      moodOver:"Mood over time", sunGoal:"Sunny goal — half is the target",
+      today:"Yesterday", slotAM:"Morning", slotPM:"Afternoon", slotNight:"Night", todayNone:"not logged",
+      reached:"half full — goal reached ☀️", go:"keep filling toward the line",
+      foot:"A private snapshot shared by {name} · updates live", just:"just now", min:"{n} min ago", hr:"{n} h ago", day:"{n} d ago",
+      note:"Thank you for always caring. I'm getting brighter every day. Love you all. ☀️", noteSign:"— {name}",
+      W:{storm:"Storm",heavyrain:"Heavy rain",rain:"Rain",sunny:"Sunny"}, missing:"This shared link isn’t active."},
+  ja:{title:"{name}さんのこころの天気", range:"直近14日 · {r}", live:"ライブ · {t}更新", sample:"サンプル表示",
+      moodOver:"こころの天気", sunGoal:"晴れの目標 — 半分が目標",
+      reached:"半分到達 — 目標達成 ☀️", go:"半分のラインを目指して",
+      foot:"{name}さんが共有した記録（一部）", just:"たった今", min:"{n}分前", hr:"{n}時間前", day:"{n}日前",
+      W:{storm:"嵐",heavyrain:"大雨",rain:"雨",sunny:"晴れ"}, missing:"この共有リンクは無効です。"}
+};
+
+let SUMMARY=null, lang="en";
+
+function fmtRange(s,e,l){const ds=new Date(s+"T00:00:00"),de=new Date(e+"T00:00:00");
+  if(l==="ja")return `${ds.getMonth()+1}月${ds.getDate()}日〜${de.getMonth()+1}月${de.getDate()}日`;
+  const mo=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${ds.getDate()} ${mo[ds.getMonth()]} – ${de.getDate()} ${mo[de.getMonth()]} ${de.getFullYear()}`;}
+function rel(iso,l){const t=I18N[l],diff=Date.now()-new Date(iso).getTime();
+  const m=Math.floor(diff/6e4),h=Math.floor(m/60),d=Math.floor(h/24);
+  if(m<1)return t.just; if(m<60)return t.min.replace("{n}",m); if(h<24)return t.hr.replace("{n}",h);
+  if(d<7)return t.day.replace("{n}",d); return new Date(iso).toLocaleDateString(l==="ja"?"ja-JP":"en-GB");}
+
+function weatherBoxHTML(weather,l){
+  const present=WEATHER.slice().filter(w=>weather[w]>0).sort((a,b)=>weather[b]-weather[a]);
+  if(!present.length)return `<div class="state">—</div>`;
+  const pc=pctRound(present.map(w=>weather[w]));
+  return present.map((w,i)=>`<div class="ww-band${i===0?' dom':''}" style="flex:${weather[w]}; background:${wColor(w)}">
+      <div class="ww-band-ic">${wIcon(w,"#3A434D")}</div>
+      <div class="ww-pct">${pc[i]}%</div>
+      <div class="ww-band-name">${I18N[l].W[w]}</div></div>`).join("");
+}
+function hourglassSVG(pct){
+  const W=260,cx=130,dotR=8,colGap=22,rowGap=27,topPad=22,rows=[6,5,4,3,2,1,2,3,4,5,6],neckIdx=5;
+  const H=topPad+(rows.length-1)*rowGap+topPad,dots=[];
+  rows.forEach((c,ri)=>{const y=topPad+ri*rowGap,sx=cx-(c-1)*colGap/2;for(let i=0;i<c;i++)dots.push({x:sx+i*colGap,y,ri,i});});
+  const order=[];for(let ri=rows.length-1;ri>=0;ri--){const rd=dots.filter(d=>d.ri===ri),ci=(rows[ri]-1)/2;rd.sort((a,b)=>Math.abs(a.i-ci)-Math.abs(b.i-ci));rd.forEach(d=>order.push(d));}
+  const lit=Math.round(pct*dots.length);order.forEach((d,k)=>{d.lit=k<lit;d.leading=k===lit-1;});
+  const midY=topPad+neckIdx*rowGap,topY=topPad-12,botY=H-topPad+12,topW=148,neckW=30,lx=cx-topW/2,rx=cx+topW/2,nlx=cx-neckW/2,nrx=cx+neckW/2;
+  let s=`<svg viewBox="0 0 ${W} ${H+6}" font-family="Nunito,sans-serif" aria-label="Sunny mood hourglass">`;
+  s+=`<path d="M ${lx} ${topY} L ${nlx} ${midY} L ${lx} ${botY} L ${rx} ${botY} L ${nrx} ${midY} L ${rx} ${topY} Z" fill="rgba(54,64,74,.03)" stroke="rgba(54,64,74,.22)" stroke-width="1.4" stroke-linejoin="round"/>`;
+  s+=`<line x1="${lx-6}" y1="${midY}" x2="${rx+6}" y2="${midY}" stroke="#79B591" stroke-width="1.5" stroke-dasharray="5 4" opacity=".9"/><text x="${rx+9}" y="${midY+4}" font-size="11.5" fill="#5f9d77" font-weight="800">50%</text>`;
+  dots.forEach(d=>{if(d.lit){if(d.leading){s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR+4}" fill="none" stroke="#F4A259" stroke-width="1.6" opacity=".45"/><circle cx="${d.x}" cy="${d.y}" r="${dotR+1}" fill="#F6B25E"/>`;}else s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="#F4A259"/>`;}else s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="none" stroke="rgba(54,64,74,.2)" stroke-width="1.3"/>`;});
+  return s+`</svg>`;
+}
+
+function setLang(l){lang="en";document.documentElement.setAttribute("data-lang","en");if(SUMMARY)render();}
+
+function todayIconColor(w){return w==="sunny"?"#F4A259":"#8A9099";}   // sunny pops, others grey
+function todayHTML(today,l){
+  const t=I18N[l]; today=today||{};
+  const slots=[["am",t.slotAM],["pm",t.slotPM],["night",t.slotNight]];
+  const any=today.am||today.pm||today.night;
+  const cells=slots.map(([k,lbl])=>{const w=today[k];
+    const ic=w?wIcon(w,todayIconColor(w)):`<div class="today-empty"></div>`;
+    return `<div class="today-slot">${ic}<small>${lbl}</small></div>`;}).join("");
+  return `<span class="today-label">${t.today}${any?"":" · "+t.todayNone}</span><div class="today-slots">${cells}</div>`;
+}
+function render(){
+  const t=I18N[lang],s=SUMMARY;
+  document.getElementById("title").textContent=t.title.replace("{name}",s.name||"");
+  document.getElementById("range").textContent=t.range.replace("{r}",fmtRange(s.rangeStart,s.rangeEnd,lang));
+  document.getElementById("today").innerHTML=todayHTML(s.yesterday,lang);
+  document.getElementById("weatherbox").innerHTML=weatherBoxHTML(s.weather,lang);
+  document.getElementById("hourglass").innerHTML=hourglassSVG(s.sunnyPct);
+  const p=Math.round(s.sunnyPct*100), reached=s.sunnyPct>=0.5;
+  const sc=document.getElementById("sun-cap"); sc.className="sun-cap"+(reached?" reached":"");
+  sc.innerHTML=`<div class="big">${p}%</div><div>${reached?t.reached:t.go}</div>`;
+  document.getElementById("cap-w").textContent=t.moodOver;
+  document.getElementById("cap-s").textContent=t.sunGoal;
+  document.getElementById("foot").textContent=t.foot.replace("{name}",s.name||"");
+  document.getElementById("note").innerHTML=`<p class="note-text">${t.note}</p><p class="note-sign">${t.noteSign.replace("{name}",s.name||"Tai")}</p>`;
+  const live=document.getElementById("live"), lt=document.getElementById("live-txt");
+  if(s._sample){live.className="live sample"; lt.textContent=t.sample;}
+  else {live.className="live"; lt.textContent=t.live.replace("{t}",rel(s.updatedAt,lang));}
+}
+function showMissing(){document.getElementById("content").innerHTML=`<div class="state">${I18N[lang].missing}</div>`;
+  document.getElementById("live").style.display="none";}
+
+async function init(){
+  const slug=new URLSearchParams(location.search).get("s");
+  if(!slug){ SUMMARY=Object.assign({_sample:true},SAMPLE); setLang("en"); return; }
+  try{
+    const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+    const {data,error}=await sb.from("share_summary").select("data").eq("slug",slug).maybeSingle();
+    if(error||!data){showMissing();return;}
+    SUMMARY=data.data; setLang("en");
+    sb.channel("share-"+slug).on("postgres_changes",
+      {event:"*",schema:"public",table:"share_summary",filter:"slug=eq."+slug},
+      payload=>{ if(payload.new&&payload.new.data){SUMMARY=payload.new.data; render();} }).subscribe();
+  }catch(e){ showMissing(); }
+}
+init();
+</script>
+</body>
+</html>

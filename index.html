@@ -233,6 +233,43 @@
   #export-card.exp-open .exp-head .chev{transform:rotate(180deg)}
   .export-opt{display:flex; align-items:center; gap:8px; font-size:.85rem; font-weight:600; color:var(--ink-soft)}
   .footnote{font-size:.78rem; color:var(--ink-soft); margin-top:14px}
+  /* summary collapsible (mirrors export) */
+  .sum-body-wrap{display:none; margin-top:14px}
+  #summary-card.sum-open .sum-body-wrap{display:block; animation:fade .25s ease}
+  #summary-card.sum-open .exp-head .chev{transform:rotate(180deg)}
+  @media print{ #summary-card .sum-body-wrap{display:block !important} }
+  /* sound toggle */
+  .icon-btn{font-size:1.05rem; line-height:1; border:1px solid var(--line); background:#fff; border-radius:999px; width:38px; height:38px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; flex:0 0 auto}
+  /* sunny goal hourglass */
+  .sun-hourglass{display:flex; justify-content:center; margin:4px 0 2px}
+  .sun-hourglass svg{width:100%; max-width:260px; height:auto}
+  .sun-caption{text-align:center; margin-top:6px; color:var(--ink-soft); font-weight:700; font-size:.9rem; line-height:1.35}
+  .sun-caption .big{font-family:var(--font-display); font-weight:600; font-size:1.7rem; color:var(--sun); line-height:1.1}
+  .sun-caption.reached .big{color:var(--leaf)}
+  /* ---- mobile readability ---- */
+  @media(max-width:560px){
+    .wrap{padding:16px 12px 64px}
+    .card{padding:17px 15px}
+    .topbar{flex-wrap:wrap; gap:9px}
+    .brand h1{font-size:1.12rem}
+    .quote{padding:22px 20px 20px}
+    .quote blockquote{font-size:1.28rem}
+    .quote .greeting{font-size:1.05rem}
+    .card > h2, .exp-head h2{font-size:1.1rem}
+    .field-label{font-size:1rem}
+    .hint, .card > .sub, .footnote, .mood-slot > span, .time-pick label, .sleep-out{font-size:.86rem}
+    .w-btn small{font-size:.72rem}
+    .w-btn svg{width:28px; height:28px}
+    .chk{font-size:.96rem; padding:11px 14px}
+    .chk input{width:20px; height:20px}
+    select{font-size:1rem; padding:11px 10px}
+    .ev-btn{font-size:.85rem; padding:7px 13px}
+    .btn{font-size:1rem; padding:13px 24px}
+    .range-in{font-size:.92rem; padding:8px 11px}
+    input[type="text"], textarea{font-size:1rem}
+    .sun-hourglass svg{max-width:230px}
+    .sun-caption{font-size:.95rem}
+  }
   .disclaimer{font-size:.76rem; color:var(--ink-soft); text-align:center; margin-top:26px; max-width:60ch; margin-left:auto; margin-right:auto}
   .print-only{display:none}
   @media print{@page{margin:14mm} body{background:#fff} .no-print{display:none !important} .wrap{max-width:none; padding:0}
@@ -275,6 +312,7 @@
       <button id="lang-en" aria-pressed="true" onclick="setLang('en')">EN</button>
       <button id="lang-ja" aria-pressed="false" onclick="setLang('ja')">日本語</button>
     </div>
+    <button id="sound-btn" class="icon-btn no-print" type="button" onclick="toggleSound()" aria-label="Sound on">🔊</button>
     <button id="signout-btn" class="signout no-print" type="button" onclick="signOut()" style="display:none" data-i18n="signOut">Sign out</button>
   </div>
 
@@ -344,30 +382,42 @@
     </div>
 
     <div class="save-row">
-      <button class="btn btn-primary" onclick="saveEntry()" data-i18n="saveBtn">Save today</button>
+      <button id="btn-save" class="btn btn-primary" onclick="playSave();saveEntry()" data-i18n="saveBtn">Save today</button>
       <span class="last-saved" id="last-saved"></span>
       <span class="saved-flag" id="saved-flag" data-i18n="savedMsg">Saved ✓</span>
       <span class="sync-status" id="sync-status"></span>
     </div>
   </div>
 
-  <div class="card">
-    <div class="sum-head no-print">
-      <div class="sum-titlerow"><h2 data-i18n="summaryTitle">Your weather over time</h2></div>
-      <div class="range-pick">
-        <input type="date" id="range-start" class="range-in" onchange="setRange('start')" aria-label="Start date">
-        <span class="range-sep">→</span>
-        <input type="date" id="range-end" class="range-in" onchange="setRange('end')" aria-label="End date">
-      </div>
-    </div>
+  <div class="card no-print" id="sun-card">
+    <h2 data-i18n="sunGoalTitle">Sunny goal</h2>
+    <p class="sub" data-i18n="sunGoalSub">Half-full is the goal — your sunny moods over the last 14 days.</p>
+    <div class="sun-hourglass" id="sun-hourglass"></div>
+    <div class="sun-caption" id="sun-caption"></div>
+  </div>
+
+  <div class="card" id="summary-card">
+    <button class="exp-head sum-toggle no-print" type="button" onclick="toggleSummary()" aria-expanded="false">
+      <h2 data-i18n="summaryTitle">Your weather over time</h2>
+      <span class="chev">▾</span>
+    </button>
     <div class="print-only" id="print-header"></div>
-    <div class="sum-cols">
-      <div class="face-week" id="face-week"></div>
-      <div id="summary-body">
-        <div class="chartbox"><div id="sleep-chart"></div></div>
+    <div class="sum-body-wrap">
+      <div class="sum-head no-print">
+        <div class="range-pick">
+          <input type="date" id="range-start" class="range-in" onchange="setRange('start')" aria-label="Start date">
+          <span class="range-sep">→</span>
+          <input type="date" id="range-end" class="range-in" onchange="setRange('end')" aria-label="End date">
+        </div>
       </div>
+      <div class="sum-cols">
+        <div class="face-week" id="face-week"></div>
+        <div id="summary-body">
+          <div class="chartbox"><div id="sleep-chart"></div></div>
+        </div>
+      </div>
+      <div class="empty" id="summary-empty" style="display:none" data-i18n="noData">No entries yet — save today's check-in to start your picture.</div>
     </div>
-    <div class="empty" id="summary-empty" style="display:none" data-i18n="noData">No entries yet — save today's check-in to start your picture.</div>
     <div class="print-only" id="print-table-wrap"></div>
   </div>
 
@@ -442,6 +492,7 @@ const I18N={
    careMsgUrgent:"You matter, and you don't have to carry this alone. Please consider reaching out right now to someone who can help:",
    saveBtn:"Save today",savedMsg:"Saved ✓",lastSaved:"Last saved",continueHint:"You can save now and add more this evening — your morning entry will be waiting.",
    summaryTitle:"Your weather over time",summarySub:"A picture of the last few weeks.",
+   sunGoalTitle:"Sunny goal",sunGoalSub:"Half-full is the goal — your sunny moods over the last 14 days.",sunGoalCount:"{n} of {t} check-ins sunny",sunGoalReached:"half full — goal reached ☀️",sunGoalGo:"keep filling toward the line",sunGoalEmpty:"Log a few days to start filling your hourglass.",
    seeExample:"See example data",clearExample:"Clear example",
    thisWeek:"This week",weekEmpty:"This week is just beginning",weekBright:"A brighter week",weekSteady:"A steady week",weekTough:"A tougher week — be kind to yourself",weekTally:"{b} bright · {o} okay · {t} tough",
    domHeadline:{storm:"A stormy week — be kind to yourself",heavyrain:"A lot of heavy rain",rain:"Mostly rain",sunny:"Mostly sunny"},weekReadings:"{n} of {t} readings",sleepTitle:"Sleep — when you slept",sleepHoursUnit:"hours",legendSleep:"went to sleep",legendWake:"woke up",actQuick:"Quick add",actChips:["Study","Gym","Walk","Cook","Hangout","Reading","Work"],
@@ -471,6 +522,7 @@ const I18N={
    careMsgUrgent:"あなたは大切な存在で、これをひとりで抱える必要はありません。今すぐ、助けになれる人に連絡することを考えてみてください：",
    saveBtn:"今日を保存",savedMsg:"保存しました ✓",lastSaved:"最終保存",continueHint:"途中で保存して、夜にまた追記できます。朝の入力はそのまま残ります。",
    summaryTitle:"これまでのこころの天気",summarySub:"ここ数週間のようすです。",
+   sunGoalTitle:"晴れの目標",sunGoalSub:"砂時計の半分が目標 — 直近14日間の「晴れ」。",sunGoalCount:"{t}回の記録中 {n}回が晴れ",sunGoalReached:"半分到達 — 目標達成 ☀️",sunGoalGo:"半分のラインを目指して",sunGoalEmpty:"数日記録すると砂時計がたまり始めます。",
    seeExample:"サンプルを見る",clearExample:"サンプルを消す",
    thisWeek:"今週",weekEmpty:"今週はこれから",weekBright:"明るい一週間",weekSteady:"おだやかな一週間",weekTough:"つらめの一週間。どうか自分にやさしく。",weekTally:"明るい日 {b}・ふつう {o}・つらい日 {t}",
    domHeadline:{storm:"嵐の多い一週間。どうか自分にやさしく。",heavyrain:"大雨が多めの一週間",rain:"雨が多めの一週間",sunny:"晴れが多めの一週間"},weekReadings:"{t}回中 {n}回",sleepTitle:"睡眠 — 就寝から起床まで",sleepHoursUnit:"時間",legendSleep:"就寝",legendWake:"起床",actQuick:"かんたん追加",actChips:["勉強","ジム","散歩","料理","外出","読書","仕事"],
@@ -565,6 +617,7 @@ function showQuote(){document.getElementById("greeting").textContent=t("greet");
 function updateSleep(){const h=sleepHours(getTime("bed"),getTime("wake"));document.getElementById("sleep-out").textContent=h!=null?`${h} ${t("sleepResult")}`:"";}
 function toggleCare(){document.getElementById("careblock").classList.toggle("open");}
 function toggleExport(){const c=document.getElementById("export-card");const open=c.classList.toggle("exp-open");c.querySelector(".exp-head").setAttribute("aria-expanded",open);}
+function toggleSummary(){const c=document.getElementById("summary-card");const open=c.classList.toggle("sum-open");c.querySelector(".exp-head").setAttribute("aria-expanded",open);if(open)renderSummary();}
 function updateCare(){
   const dark=document.getElementById("care-dark").checked;
   const any=dark||document.getElementById("care-anx").checked||document.getElementById("care-low").checked;
@@ -670,33 +723,103 @@ function pctRound(counts){
   }
   return r;
 }
+/* sleep zone = 23:00–07:00, expressed in the chart's 7pm-origin minutes */
+const ZONE_S=240, ZONE_E=720;
+const SLEEP_COL={ok:{bar:"#F4A259",dot:"#CF9520"},yellow:{bar:"#BFC5CC",dot:"#878E96"},red:{bar:"#BFC5CC",dot:"#878E96"}};
+const sleepToMin=tt=>{const[h,m]=tt.split(":").map(Number);return ((h-19+24)%24)*60+m;};
+function sleepStatus(e){
+  if(!(e&&e.bed&&e.wake))return null;
+  const totalH=sleepHours(e.bed,e.wake);
+  const bm=sleepToMin(e.bed);let wm=sleepToMin(e.wake);if(wm<=bm)wm+=1440;
+  const overlap=Math.max(0,Math.min(wm,ZONE_E)-Math.max(bm,ZONE_S));
+  const outH=((wm-bm)-overlap)/60;                       // hours of sleep outside the zone
+  if(totalH<4||outH>3)return "red";
+  if(totalH<6||outH>2)return "yellow";
+  return "ok";
+}
 function renderSleep(){
   const host=document.getElementById("sleep-chart");if(!host)return;
   const days=rangeDates();
   if(!days.length){host.innerHTML="";return;}
-  const n=days.length,T=1080,W=500,H=336,padL=38,padR=8,padT=12,padB=92;
+  const n=days.length,T=1080,W=500,H=360,padL=40,padR=8,padT=12,padB=116;
   const plotW=W-padL-padR,plotH=H-padT-padB;
-  const toMin=tt=>{const[h,m]=tt.split(":").map(Number);return ((h-19+24)%24)*60+m;};
+  const toMin=sleepToMin;
   const x=i=>padL+(i+0.5)*(plotW/n),y=m=>padT+(m/T)*plotH;
   const lw=Math.min(15,(plotW/n)*0.42),rdot=lw*0.32;
-  const baseHours=H-padB+18,baseDate=H-padB+31,iconY=H-padB+48,isz=18;
+  const baseHours=H-padB+19,baseDate=H-padB+35,iconY=H-padB+50,isz=20,markY=H-padB+87;
   let s=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" font-family="Nunito,sans-serif" aria-label="Sleep windows and daily weather">`;
   [[60,"20:00"],[180,"22:00"],[300,"00:00"],[420,"02:00"],[540,"04:00"],[660,"06:00"],[780,"08:00"],[900,"10:00"],[1020,"12:00"]].forEach(([m,l])=>{const yy=y(m);
-    s+=`<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="rgba(54,64,74,.07)"/><text x="${padL-5}" y="${yy+3}" font-size="7.5" fill="#9aa0a6" text-anchor="end">${l}</text>`;});
+    s+=`<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="rgba(54,64,74,.07)"/><text x="${padL-5}" y="${yy+3}" font-size="9" fill="#9aa0a6" text-anchor="end">${l}</text>`;});
+  /* aimed sleep zone (11pm–7am): faint band + dashed green edges */
+  const yz1=y(ZONE_S),yz2=y(ZONE_E);
+  s+=`<rect x="${padL}" y="${yz1}" width="${plotW}" height="${yz2-yz1}" fill="#79B591" opacity=".07"/>`;
+  s+=`<line x1="${padL}" y1="${yz1}" x2="${W-padR}" y2="${yz1}" stroke="#79B591" stroke-width="1.4" stroke-dasharray="5 4" opacity=".75"/>`;
+  s+=`<line x1="${padL}" y1="${yz2}" x2="${W-padR}" y2="${yz2}" stroke="#79B591" stroke-width="1.4" stroke-dasharray="5 4" opacity=".75"/>`;
   days.forEach((d,i)=>{const e=entries[d],cx=x(i);
     s+=`<line x1="${cx}" y1="${padT}" x2="${cx}" y2="${padT+plotH}" stroke="rgba(54,64,74,.05)" stroke-width="${lw}" stroke-linecap="round"/>`;
     if(e.bed&&e.wake){const yb=y(toMin(e.bed)),yw=y(toMin(e.wake));
-      s+=`<line x1="${cx}" y1="${yb}" x2="${cx}" y2="${yw}" stroke="#9DB7D6" stroke-width="${lw}" stroke-linecap="round"/>`;
-      s+=`<circle cx="${cx}" cy="${yb}" r="${rdot}" fill="#5E7AA8"/><circle cx="${cx}" cy="${yw}" r="${rdot}" fill="#5E7AA8"/>`;
-      s+=`<text x="${cx}" y="${baseHours}" font-size="9.5" fill="#36404A" text-anchor="middle" font-weight="700">${sleepHours(e.bed,e.wake)}</text>`;}
-    s+=`<text x="${cx}" y="${baseDate}" font-size="7" fill="#b3b8bd" text-anchor="middle">${d.slice(5)}</text>`;
+      const st=sleepStatus(e),col=SLEEP_COL[st];
+      s+=`<line x1="${cx}" y1="${yb}" x2="${cx}" y2="${yw}" stroke="${col.bar}" stroke-width="${lw}" stroke-linecap="round"/>`;
+      s+=`<circle cx="${cx}" cy="${yb}" r="${rdot}" fill="${col.dot}"/><circle cx="${cx}" cy="${yw}" r="${rdot}" fill="${col.dot}"/>`;
+      s+=`<text x="${cx}" y="${baseHours}" font-size="11.5" fill="${st==="ok"?"#36404A":col.dot}" text-anchor="middle" font-weight="700">${sleepHours(e.bed,e.wake)}</text>`;}
+    s+=`<text x="${cx}" y="${baseDate}" font-size="9.5" fill="#b3b8bd" text-anchor="middle">${d.slice(5)}</text>`;
     const w=e.night||e.pm||e.am;
-    if(w)s+=wIcon(w,WCOLORS[w]).replace('<svg ',`<svg x="${cx-isz/2}" y="${iconY}" width="${isz}" height="${isz}" `);});
+    if(w)s+=wIcon(w,w==="sunny"?WCOLORS.sunny:"#878E96").replace('<svg ',`<svg x="${cx-isz/2}" y="${iconY}" width="${isz}" height="${isz}" `);
+    if(e.anx||e.low||e.dark)s+=`<text x="${cx}" y="${markY}" font-size="15" text-anchor="middle" aria-label="caring check-in">\u{1F6A8}</text>`;});
   s+=`</svg>`;
   host.innerHTML=`<div class="sleep-legend"><span class="sl-dot"></span>${t("legendSleep")}<span class="sl-arrow">→</span><span class="sl-dot"></span>${t("legendWake")}<span class="sl-unit">·&nbsp;${t("sleepHoursUnit")}</span></div>`+s;
 }
 
+function sunnyStats(){
+  const end=todayStr(), start=addDays(end,-13);          // recent 14 days, inclusive
+  let sunny=0,total=0;
+  Object.keys(entries).forEach(d=>{ if(d<start||d>end)return; const e=entries[d]; if(!e)return;
+    [e.am,e.pm,e.night].forEach(w=>{ if(w){ total++; if(w==="sunny")sunny++; } }); });
+  return {sunny,total,pct: total? sunny/total : 0};
+}
+function renderSunGoal(){
+  const host=document.getElementById("sun-hourglass"); if(!host)return;
+  const cap=document.getElementById("sun-caption");
+  const {sunny,total,pct}=sunnyStats();
+  const W=260,cx=130,dotR=8,colGap=22,rowGap=27,topPad=22;
+  const rows=[6,5,4,3,2,1,2,3,4,5,6],neckIdx=5;
+  const H=topPad+(rows.length-1)*rowGap+topPad;
+  const dots=[];
+  rows.forEach((c,ri)=>{const y=topPad+ri*rowGap;const startX=cx-(c-1)*colGap/2;
+    for(let i=0;i<c;i++)dots.push({x:startX+i*colGap,y,ri,i});});
+  const order=[];                                         // fill bottom-up, center-out within a row
+  for(let ri=rows.length-1;ri>=0;ri--){
+    const rd=dots.filter(d=>d.ri===ri);const cidx=(rows[ri]-1)/2;
+    rd.sort((a,b)=>Math.abs(a.i-cidx)-Math.abs(b.i-cidx));
+    rd.forEach(d=>order.push(d));
+  }
+  const litCount=Math.round(pct*dots.length);
+  order.forEach((d,k)=>{d.lit=k<litCount;d.leading=(k===litCount-1);});
+  const midY=topPad+neckIdx*rowGap, topY=topPad-12, botY=H-topPad+12;
+  const topW=148,neckW=30,lx=cx-topW/2,rx=cx+topW/2,nlx=cx-neckW/2,nrx=cx+neckW/2;
+  let s=`<svg viewBox="0 0 ${W} ${H+6}" font-family="Nunito,sans-serif" aria-label="Sunny-mood hourglass">`;
+  s+=`<path d="M ${lx} ${topY} L ${nlx} ${midY} L ${lx} ${botY} L ${rx} ${botY} L ${nrx} ${midY} L ${rx} ${topY} Z" fill="rgba(54,64,74,.03)" stroke="rgba(54,64,74,.22)" stroke-width="1.4" stroke-linejoin="round"/>`;
+  s+=`<line x1="${lx-6}" y1="${midY}" x2="${rx+6}" y2="${midY}" stroke="#79B591" stroke-width="1.5" stroke-dasharray="5 4" opacity=".9"/>`;
+  s+=`<text x="${rx+9}" y="${midY+4}" font-size="11.5" fill="#5f9d77" font-weight="800">50%</text>`;
+  dots.forEach(d=>{
+    if(d.lit){
+      if(d.leading){
+        s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR+4}" fill="none" stroke="#F4A259" stroke-width="1.6" opacity=".45"/>`;
+        s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR+1}" fill="#F6B25E"/>`;
+      } else s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="#F4A259"/>`;
+    } else s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="none" stroke="rgba(54,64,74,.2)" stroke-width="1.3"/>`;
+  });
+  s+=`</svg>`;
+  host.innerHTML=s;
+  const p=Math.round(pct*100);
+  if(total===0){cap.className="sun-caption";cap.textContent=t("sunGoalEmpty");return;}
+  const reached=pct>=0.5;
+  const count=t("sunGoalCount").replace("{n}",sunny).replace("{t}",total);
+  cap.className="sun-caption"+(reached?" reached":"");
+  cap.innerHTML=`<div class="big">${p}%</div><div>${count} · ${reached?t("sunGoalReached"):t("sunGoalGo")}</div>`;
+}
 function renderSummary(){
+  renderSunGoal();
   const dates=sortedDates();const has=dates.length>0;
   document.getElementById("summary-body").style.display=has?"block":"none";
   document.getElementById("summary-empty").style.display=has?"none":"block";
@@ -878,7 +1001,36 @@ async function initBackup(){
   else setBackupStatus(t("backupOff"));
 }
 
-(function init(){fillTimeSelects();document.getElementById("entry-date").value=todayStr();initRange();applyI18n();syncRangeInputs();loadEntry();initBackup();initAuth();})();
+/* ---- sound effects (Web Audio, no files) ---- */
+let audioCtx=null;
+let soundOn=(localStorage.getItem("innerWeather.sound")!=="off");
+function ensureAudio(){
+  if(!audioCtx){try{audioCtx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}}
+  if(audioCtx.state==="suspended")audioCtx.resume();
+  return audioCtx;
+}
+function beep(freq,start,dur,peak,type){
+  const ac=audioCtx,o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime+start;
+  o.type=type||"sine";o.frequency.value=freq;
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(peak,t+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g).connect(ac.destination);o.start(t);o.stop(t+dur+0.03);
+}
+function playClick(){if(!soundOn||!ensureAudio())return;beep(430,0,0.07,0.05,"triangle");}      // soft tap
+function playSave(){if(!soundOn||!ensureAudio())return;[523.25,659.25,783.99].forEach((f,i)=>beep(f,i*0.085,0.17,0.06,"sine"));}  // rising C–E–G chime
+function updateSoundBtn(){const b=document.getElementById("sound-btn");if(b){b.textContent=soundOn?"🔊":"🔇";b.setAttribute("aria-label",soundOn?"Sound on":"Sound off");}}
+function toggleSound(){soundOn=!soundOn;localStorage.setItem("innerWeather.sound",soundOn?"on":"off");updateSoundBtn();if(soundOn)playClick();}
+function setupSounds(){
+  updateSoundBtn();
+  document.addEventListener("click",function(ev){
+    const el=ev.target.closest('button, [role="button"], label.chk');
+    if(!el)return;
+    if(el.id==="btn-save"||el.id==="sound-btn")return;   // save plays its own chime; sound-btn handles itself
+    playClick();
+  },true);
+}
+(function init(){fillTimeSelects();document.getElementById("entry-date").value=todayStr();initRange();applyI18n();syncRangeInputs();loadEntry();initBackup();initAuth();setupSounds();})();
 </script>
 </body>
 </html>

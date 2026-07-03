@@ -83,7 +83,7 @@
 <script>
 /* ---------- config ---------- */
 const SUPABASE_URL = "https://fvukhnxxpnepqolxyigw.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_vXi71Von3iPqRUmRVFX-mw_WqyDX392";
+const SUPABASE_ANON_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE";
 
 /* ---------- sample data (used when no ?s= token) ---------- */
 const SAMPLE = {
@@ -101,21 +101,22 @@ function wIcon(type,color){const c=color||"#3A434D";
   if(type==="heavyrain")return `<svg viewBox="0 0 32 32"><path d="M9 17a5 5 0 0 1 .6-9.95A6 6 0 0 1 21.5 8 4.5 4.5 0 0 1 22 17H9z" fill="${c}"/><g stroke="${c}" stroke-width="2" stroke-linecap="round"><line x1="9" y1="21" x2="8" y2="26"/><line x1="14" y1="21" x2="13" y2="27"/><line x1="19" y1="21" x2="18" y2="26"/><line x1="24" y1="21" x2="23" y2="27"/></g></svg>`;
   return `<svg viewBox="0 0 32 32"><path d="M9 16a5 5 0 0 1 .6-9.95A6 6 0 0 1 21.5 7 4.5 4.5 0 0 1 22 16H9z" fill="${c}"/><path d="M16 17l-4 6h3l-1 5 5-7h-3l2-4z" fill="#F4A259"/></svg>`;}
 const WEATHER=["storm","heavyrain","rain","sunny"];
+const SUN_GOAL=0.65;
 const FACECOL={1:"#9CA3AB", 2:"#BCC2C8", 3:"#DCDFE3", 4:"#F7C985"};  // storm/heavyrain/rain = grey, sunny = gold
 const wColor=w=>FACECOL[WEATHER.indexOf(w)+1];
 function pctRound(counts){const total=counts.reduce((a,b)=>a+b,0);let r=counts.map(c=>{let v=Math.round(c/total*20)*5;if(c>0&&v<5)v=5;return v;});let diff=100-r.reduce((a,b)=>a+b,0),g=0;while(diff!==0&&g++<60){if(diff>0){let bi=0,bv=-1e9;r.forEach((rv,i)=>{const e=counts[i]/total*100-rv;if(e>bv){bv=e;bi=i;}});r[bi]+=5;diff-=5;}else{let bi=0,bv=-1e9;r.forEach((rv,i)=>{const e=rv-counts[i]/total*100;if(e>bv&&rv>5){bv=e;bi=i;}});r[bi]-=5;diff+=5;}}return r;}
 
 const I18N={
   en:{title:"{name}’s Inner Weather Report", range:"Last 14 days · {r}", live:"live · updated {t}", sample:"sample preview",
-      moodOver:"Mood over time", sunGoal:"Sunny goal — half is the target",
+      moodOver:"Mood over time", sunGoal:"Sunny goal — 65% is the target",
       today:"Yesterday", slotAM:"Morning", slotPM:"Afternoon", slotNight:"Night", todayNone:"not logged",
-      reached:"half full — goal reached ☀️", go:"keep filling toward the line",
+      reached:"goal reached ☀️", go:"keep filling toward the line",
       foot:"A private snapshot shared by {name} · updates live", just:"just now", min:"{n} min ago", hr:"{n} h ago", day:"{n} d ago",
       note:"Thank you for always caring. I'm getting brighter every day. Love you all. ☀️", noteSign:"— {name}",
       W:{storm:"Storm",heavyrain:"Heavy rain",rain:"Rain",sunny:"Sunny"}, missing:"This shared link isn’t active."},
   ja:{title:"{name}さんのこころの天気", range:"直近14日 · {r}", live:"ライブ · {t}更新", sample:"サンプル表示",
-      moodOver:"こころの天気", sunGoal:"晴れの目標 — 半分が目標",
-      reached:"半分到達 — 目標達成 ☀️", go:"半分のラインを目指して",
+      moodOver:"こころの天気", sunGoal:"晴れの目標 — 目標は65%",
+      reached:"目標達成 ☀️", go:"65%のラインを目指して",
       foot:"{name}さんが共有した記録（一部）", just:"たった今", min:"{n}分前", hr:"{n}時間前", day:"{n}日前",
       W:{storm:"嵐",heavyrain:"大雨",rain:"雨",sunny:"晴れ"}, missing:"この共有リンクは無効です。"}
 };
@@ -141,15 +142,23 @@ function weatherBoxHTML(weather,l){
       <div class="ww-band-name">${I18N[l].W[w]}</div></div>`).join("");
 }
 function hourglassSVG(pct){
-  const W=260,cx=130,dotR=8,colGap=22,rowGap=27,topPad=22,rows=[6,5,4,3,2,1,2,3,4,5,6],neckIdx=5;
+  const colGap=22,rowGap=27,topPad=22,cx=130,dotR=6,W=260;
+  const rows=[5,4,3,2,1,2,3,4,5,6,7],neckIdx=4;      // bottom bulb + neck = 28/42 dots ≈ the 65% goal
   const H=topPad+(rows.length-1)*rowGap+topPad,dots=[];
   rows.forEach((c,ri)=>{const y=topPad+ri*rowGap,sx=cx-(c-1)*colGap/2;for(let i=0;i<c;i++)dots.push({x:sx+i*colGap,y,ri,i});});
   const order=[];for(let ri=rows.length-1;ri>=0;ri--){const rd=dots.filter(d=>d.ri===ri),ci=(rows[ri]-1)/2;rd.sort((a,b)=>Math.abs(a.i-ci)-Math.abs(b.i-ci));rd.forEach(d=>order.push(d));}
   const lit=Math.round(pct*dots.length);order.forEach((d,k)=>{d.lit=k<lit;d.leading=k===lit-1;});
-  const midY=topPad+neckIdx*rowGap,topY=topPad-12,botY=H-topPad+12,topW=148,neckW=30,lx=cx-topW/2,rx=cx+topW/2,nlx=cx-neckW/2,nrx=cx+neckW/2;
+  const midY=topPad+neckIdx*rowGap,topY=topPad-12,botY=H-topPad+12;
+  const topW=134,botW=178,neckW=34,lx=cx-topW/2,rx=cx+topW/2,lx2=cx-botW/2,rx2=cx+botW/2,nlx=cx-neckW/2,nrx=cx+neckW/2;
+  const verts=[[lx,topY],[rx,topY],[nrx,midY],[rx2,botY],[lx2,botY],[nlx,midY]],rads=[12,12,18,12,12,18];
+  const seg=[];const n=verts.length;
+  for(let i=0;i<n;i++){const pt=verts[i],a=verts[(i-1+n)%n],b=verts[(i+1)%n],r=rads[i];
+    const da=Math.hypot(a[0]-pt[0],a[1]-pt[1]),db=Math.hypot(b[0]-pt[0],b[1]-pt[1]);
+    const f1=Math.min(r,da/2)/da,f2=Math.min(r,db/2)/db;
+    seg.push(`${i?"L":"M"} ${(pt[0]+(a[0]-pt[0])*f1).toFixed(1)} ${(pt[1]+(a[1]-pt[1])*f1).toFixed(1)} Q ${pt[0]} ${pt[1]} ${(pt[0]+(b[0]-pt[0])*f2).toFixed(1)} ${(pt[1]+(b[1]-pt[1])*f2).toFixed(1)}`);}
   let s=`<svg viewBox="0 0 ${W} ${H+6}" font-family="Nunito,sans-serif" aria-label="Sunny mood hourglass">`;
-  s+=`<path d="M ${lx} ${topY} L ${nlx} ${midY} L ${lx} ${botY} L ${rx} ${botY} L ${nrx} ${midY} L ${rx} ${topY} Z" fill="rgba(54,64,74,.03)" stroke="rgba(54,64,74,.22)" stroke-width="1.4" stroke-linejoin="round"/>`;
-  s+=`<line x1="${lx-6}" y1="${midY}" x2="${rx+6}" y2="${midY}" stroke="#79B591" stroke-width="1.5" stroke-dasharray="5 4" opacity=".9"/><text x="${rx+9}" y="${midY+4}" font-size="11.5" fill="#5f9d77" font-weight="800">50%</text>`;
+  s+=`<path d="${seg.join(" ")} Z" fill="rgba(54,64,74,.03)" stroke="rgba(54,64,74,.22)" stroke-width="1.4" stroke-linejoin="round"/>`;
+  s+=`<line x1="${lx2-6}" y1="${midY}" x2="${rx2+6}" y2="${midY}" stroke="#79B591" stroke-width="1.5" stroke-dasharray="5 4" opacity=".9"/><text x="${rx2+9}" y="${midY+4}" font-size="11.5" fill="#5f9d77" font-weight="800">${Math.round(SUN_GOAL*100)}%</text>`;
   dots.forEach(d=>{if(d.lit){if(d.leading){s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR+4}" fill="none" stroke="#F4A259" stroke-width="1.6" opacity=".45"/><circle cx="${d.x}" cy="${d.y}" r="${dotR+1}" fill="#F6B25E"/>`;}else s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="#F4A259"/>`;}else s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="none" stroke="rgba(54,64,74,.2)" stroke-width="1.3"/>`;});
   return s+`</svg>`;
 }
@@ -173,7 +182,7 @@ function render(){
   document.getElementById("today").innerHTML=todayHTML(s.yesterday,lang);
   document.getElementById("weatherbox").innerHTML=weatherBoxHTML(s.weather,lang);
   document.getElementById("hourglass").innerHTML=hourglassSVG(s.sunnyPct);
-  const p=Math.round(s.sunnyPct*100), reached=s.sunnyPct>=0.5;
+  const p=Math.round(s.sunnyPct*100), reached=s.sunnyPct>=SUN_GOAL;
   const sc=document.getElementById("sun-cap"); sc.className="sun-cap"+(reached?" reached":"");
   sc.innerHTML=`<div class="big">${p}%</div><div>${reached?t.reached:t.go}</div>`;
   document.getElementById("cap-w").textContent=t.moodOver;

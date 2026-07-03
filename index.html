@@ -413,7 +413,7 @@
 
   <div class="card no-print" id="sun-card">
     <h2 data-i18n="sunGoalTitle">Sunny goal</h2>
-    <p class="sub" data-i18n="sunGoalSub">Half-full is the goal — your sunny moods over the last 14 days.</p>
+    <p class="sub" data-i18n="sunGoalSub">65% is the goal — your sunny moods over the last 14 days.</p>
     <div class="sun-hourglass" id="sun-hourglass"></div>
     <div class="sun-caption" id="sun-caption"></div>
   </div>
@@ -533,7 +533,7 @@ const I18N={
    careMsgUrgent:"You matter, and you don't have to carry this alone. Please consider reaching out right now to someone who can help:",
    saveBtn:"Save today",savedMsg:"Saved ✓",lastSaved:"Last saved",continueHint:"You can save now and add more this evening — your morning entry will be waiting.",
    summaryTitle:"Your weather over time",summarySub:"A picture of the last few weeks.",
-   sunGoalTitle:"Sunny goal",sunGoalSub:"Half-full is the goal — your sunny moods over the last 14 days.",sunGoalCount:"{n} of {t} check-ins sunny",sunGoalReached:"half full — goal reached ☀️",sunGoalGo:"keep filling toward the line",sunGoalEmpty:"Log a few days to start filling your hourglass.",
+   sunGoalTitle:"Sunny goal",sunGoalSub:"65% is the goal — your sunny moods over the last 14 days.",sunGoalCount:"{n} of {t} check-ins sunny",sunGoalReached:"goal reached ☀️",sunGoalGo:"keep filling toward the line",sunGoalEmpty:"Log a few days to start filling your hourglass.",
    shareTitle:"Share with family",shareSub:"A live, read-only link to your weather box and sunny goal — no notes or private details.",shareCopy:"Copy",shareCopied:"Copied ✓",shareName:"Shown to family as",shareLiveNote:"Live — anyone with this link can see these two charts.",shareSignin:"Sign in first to create a family link.",
    seeExample:"See example data",clearExample:"Clear example",
    thisWeek:"This week",weekEmpty:"This week is just beginning",weekBright:"A brighter week",weekSteady:"A steady week",weekTough:"A tougher week — be kind to yourself",weekTally:"{b} bright · {o} okay · {t} tough",
@@ -564,7 +564,7 @@ const I18N={
    careMsgUrgent:"あなたは大切な存在で、これをひとりで抱える必要はありません。今すぐ、助けになれる人に連絡することを考えてみてください：",
    saveBtn:"今日を保存",savedMsg:"保存しました ✓",lastSaved:"最終保存",continueHint:"途中で保存して、夜にまた追記できます。朝の入力はそのまま残ります。",
    summaryTitle:"これまでのこころの天気",summarySub:"ここ数週間のようすです。",
-   sunGoalTitle:"晴れの目標",sunGoalSub:"砂時計の半分が目標 — 直近14日間の「晴れ」。",sunGoalCount:"{t}回の記録中 {n}回が晴れ",sunGoalReached:"半分到達 — 目標達成 ☀️",sunGoalGo:"半分のラインを目指して",sunGoalEmpty:"数日記録すると砂時計がたまり始めます。",
+   sunGoalTitle:"晴れの目標",sunGoalSub:"目標は65% — 直近14日間の「晴れ」。",sunGoalCount:"{t}回の記録中 {n}回が晴れ",sunGoalReached:"目標達成 ☀️",sunGoalGo:"65%のラインを目指して",sunGoalEmpty:"数日記録すると砂時計がたまり始めます。",
    shareTitle:"家族と共有",shareSub:"天気ボックスと晴れの目標だけを見られる、リアルタイムのリンク（メモや詳細は含みません）。",shareCopy:"コピー",shareCopied:"コピーしました ✓",shareName:"家族への表示名",shareLiveNote:"ライブ — リンクを知っている人がこの2つのグラフを見られます。",shareSignin:"共有するにはまずサインインしてください。",
    seeExample:"サンプルを見る",clearExample:"サンプルを消す",
    thisWeek:"今週",weekEmpty:"今週はこれから",weekBright:"明るい一週間",weekSteady:"おだやかな一週間",weekTough:"つらめの一週間。どうか自分にやさしく。",weekTally:"明るい日 {b}・ふつう {o}・つらい日 {t}",
@@ -777,9 +777,7 @@ function sleepStatus(e){
   const bm=sleepToMin(e.bed);let wm=sleepToMin(e.wake);if(wm<=bm)wm+=1440;
   const overlap=Math.max(0,Math.min(wm,ZONE_E)-Math.max(bm,ZONE_S));
   const outH=((wm-bm)-overlap)/60;                       // hours of sleep outside the zone
-  if(totalH<4||outH>3)return "red";
-  if(totalH<6||outH>2)return "yellow";
-  return "ok";
+  return (totalH>6.5&&outH<=1)?"ok":"yellow";            // gold: >6.5h AND ≤1h outside 23:00–07:00
 }
 function renderSleep(){
   const host=document.getElementById("sleep-chart");if(!host)return;
@@ -814,6 +812,7 @@ function renderSleep(){
   host.innerHTML=`<div class="sleep-legend"><span class="sl-dot"></span>${t("legendSleep")}<span class="sl-arrow">→</span><span class="sl-dot"></span>${t("legendWake")}<span class="sl-unit">·&nbsp;${t("sleepHoursUnit")}</span></div>`+s;
 }
 
+const SUN_GOAL=0.65;                                     // sunny-mood goal share
 function sunnyStats(){
   const end=todayStr(), start=addDays(end,-13);          // recent 14 days, inclusive
   let sunny=0,total=0;
@@ -821,43 +820,58 @@ function sunnyStats(){
     [e.am,e.pm,e.night].forEach(w=>{ if(w){ total++; if(w==="sunny")sunny++; } }); });
   return {sunny,total,pct: total? sunny/total : 0};
 }
+/* shared hourglass artwork — neck sits at the 65% goal level; soft filleted outline */
+function hourglassArt(pct){
+  const colGap=22,rowGap=27,topPad=22,cx=130,dotR=6,W=260;
+  const rows=[5,4,3,2,1,2,3,4,5,6,7],neckIdx=4;      // bottom bulb + neck = 28/42 dots ≈ the 65% goal
+  const H=topPad+(rows.length-1)*rowGap+topPad;
+  const dots=[];
+  rows.forEach((c,ri)=>{const y=topPad+ri*rowGap;const sx=cx-(c-1)*colGap/2;
+    for(let i=0;i<c;i++)dots.push({x:sx+i*colGap,y,ri,i});});
+  const order=[];                                     // fill bottom-up, center-out within a row
+  for(let ri=rows.length-1;ri>=0;ri--){
+    const rd=dots.filter(d=>d.ri===ri);const ci=(rows[ri]-1)/2;
+    rd.sort((a,b)=>Math.abs(a.i-ci)-Math.abs(b.i-ci));
+    rd.forEach(d=>order.push(d));
+  }
+  const lit=Math.round(pct*dots.length);
+  order.forEach((d,k)=>{d.lit=k<lit;d.leading=(k===lit-1);});
+  const midY=topPad+neckIdx*rowGap, topY=topPad-12, botY=H-topPad+12;
+  const topW=134,botW=178,neckW=34;
+  const lx=cx-topW/2,rx=cx+topW/2,lx2=cx-botW/2,rx2=cx+botW/2,nlx=cx-neckW/2,nrx=cx+neckW/2;
+  const verts=[[lx,topY],[rx,topY],[nrx,midY],[rx2,botY],[lx2,botY],[nlx,midY]];
+  const rads =[12,12,18,12,12,18];                    // filleted corners, extra-soft neck
+  const seg=[];const n=verts.length;
+  for(let i=0;i<n;i++){
+    const pt=verts[i],a=verts[(i-1+n)%n],b=verts[(i+1)%n],r=rads[i];
+    const da=Math.hypot(a[0]-pt[0],a[1]-pt[1]),db=Math.hypot(b[0]-pt[0],b[1]-pt[1]);
+    const f1=Math.min(r,da/2)/da,f2=Math.min(r,db/2)/db;
+    const p1x=pt[0]+(a[0]-pt[0])*f1,p1y=pt[1]+(a[1]-pt[1])*f1;
+    const p2x=pt[0]+(b[0]-pt[0])*f2,p2y=pt[1]+(b[1]-pt[1])*f2;
+    seg.push(`${i?"L":"M"} ${p1x.toFixed(1)} ${p1y.toFixed(1)} Q ${pt[0]} ${pt[1]} ${p2x.toFixed(1)} ${p2y.toFixed(1)}`);
+  }
+  let inner=`<path d="${seg.join(" ")} Z" fill="rgba(54,64,74,.03)" stroke="rgba(54,64,74,.22)" stroke-width="1.4" stroke-linejoin="round"/>`;
+  inner+=`<line x1="${lx2-6}" y1="${midY}" x2="${rx2+6}" y2="${midY}" stroke="#79B591" stroke-width="1.5" stroke-dasharray="5 4" opacity=".9"/>`;
+  inner+=`<text x="${rx2+9}" y="${midY+4}" font-size="11.5" fill="#5f9d77" font-weight="800" font-family="Nunito, Helvetica, Arial, sans-serif">${Math.round(SUN_GOAL*100)}%</text>`;
+  dots.forEach(d=>{
+    if(d.lit){
+      if(d.leading){
+        inner+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR+4}" fill="none" stroke="#F4A259" stroke-width="1.6" opacity=".45"/>`;
+        inner+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR+1}" fill="#F6B25E"/>`;
+      } else inner+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="#F4A259"/>`;
+    } else inner+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="none" stroke="rgba(54,64,74,.2)" stroke-width="1.3"/>`;
+  });
+  return {inner,W,H};
+}
 function renderSunGoal(){
   const host=document.getElementById("sun-hourglass"); if(!host)return;
   const cap=document.getElementById("sun-caption");
   const {sunny,total,pct}=sunnyStats();
-  const W=260,cx=130,dotR=8,colGap=22,rowGap=27,topPad=22;
-  const rows=[6,5,4,3,2,1,2,3,4,5,6],neckIdx=5;
-  const H=topPad+(rows.length-1)*rowGap+topPad;
-  const dots=[];
-  rows.forEach((c,ri)=>{const y=topPad+ri*rowGap;const startX=cx-(c-1)*colGap/2;
-    for(let i=0;i<c;i++)dots.push({x:startX+i*colGap,y,ri,i});});
-  const order=[];                                         // fill bottom-up, center-out within a row
-  for(let ri=rows.length-1;ri>=0;ri--){
-    const rd=dots.filter(d=>d.ri===ri);const cidx=(rows[ri]-1)/2;
-    rd.sort((a,b)=>Math.abs(a.i-cidx)-Math.abs(b.i-cidx));
-    rd.forEach(d=>order.push(d));
-  }
-  const litCount=Math.round(pct*dots.length);
-  order.forEach((d,k)=>{d.lit=k<litCount;d.leading=(k===litCount-1);});
-  const midY=topPad+neckIdx*rowGap, topY=topPad-12, botY=H-topPad+12;
-  const topW=148,neckW=30,lx=cx-topW/2,rx=cx+topW/2,nlx=cx-neckW/2,nrx=cx+neckW/2;
-  let s=`<svg viewBox="0 0 ${W} ${H+6}" font-family="Nunito,sans-serif" aria-label="Sunny-mood hourglass">`;
-  s+=`<path d="M ${lx} ${topY} L ${nlx} ${midY} L ${lx} ${botY} L ${rx} ${botY} L ${nrx} ${midY} L ${rx} ${topY} Z" fill="rgba(54,64,74,.03)" stroke="rgba(54,64,74,.22)" stroke-width="1.4" stroke-linejoin="round"/>`;
-  s+=`<line x1="${lx-6}" y1="${midY}" x2="${rx+6}" y2="${midY}" stroke="#79B591" stroke-width="1.5" stroke-dasharray="5 4" opacity=".9"/>`;
-  s+=`<text x="${rx+9}" y="${midY+4}" font-size="11.5" fill="#5f9d77" font-weight="800">50%</text>`;
-  dots.forEach(d=>{
-    if(d.lit){
-      if(d.leading){
-        s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR+4}" fill="none" stroke="#F4A259" stroke-width="1.6" opacity=".45"/>`;
-        s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR+1}" fill="#F6B25E"/>`;
-      } else s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="#F4A259"/>`;
-    } else s+=`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="none" stroke="rgba(54,64,74,.2)" stroke-width="1.3"/>`;
-  });
-  s+=`</svg>`;
-  host.innerHTML=s;
+  const art=hourglassArt(pct);
+  host.innerHTML=`<svg viewBox="0 0 ${art.W} ${art.H+6}" font-family="Nunito,sans-serif" aria-label="Sunny-mood hourglass">${art.inner}</svg>`;
   const p=Math.round(pct*100);
   if(total===0){cap.className="sun-caption";cap.textContent=t("sunGoalEmpty");return;}
-  const reached=pct>=0.5;
+  const reached=pct>=SUN_GOAL;
   const count=t("sunGoalCount").replace("{n}",sunny).replace("{t}",total);
   cap.className="sun-caption"+(reached?" reached":"");
   cap.innerHTML=`<div class="big">${p}%</div><div>${count} · ${reached?t("sunGoalReached"):t("sunGoalGo")}</div>`;
@@ -939,26 +953,8 @@ function buildSummarySVG(ins){
   const T=(x,y,t,sz,fill,w,anc,fam)=>S.push(`<text x="${x}" y="${y}" font-size="${sz||13}" fill="${fill||INK}" font-weight="${w||"normal"}" text-anchor="${anc||"start"}" font-family="${fam||SANS}">${t}</text>`);
   const dateRow=yy=>win.forEach((e,i)=>{if(n<=14||i%5===0)T(colX(i),yy,e.date.slice(5),10,SOFT,"normal","middle");});
   function drawHourglass(ox,oy,k,pct){
-    const colGap=22,rowGap=27,topPad=22,cx=130,dotR=8,rows=[6,5,4,3,2,1,2,3,4,5,6],neckIdx=5;
-    const Hh=topPad+(rows.length-1)*rowGap+topPad, dots=[];
-    rows.forEach((c,ri)=>{const y=topPad+ri*rowGap, sx=cx-(c-1)*colGap/2;for(let i=0;i<c;i++)dots.push({x:sx+i*colGap,y,ri,i});});
-    const order=[];
-    for(let ri=rows.length-1;ri>=0;ri--){const rd=dots.filter(d=>d.ri===ri),cidx=(rows[ri]-1)/2;rd.sort((a,b)=>Math.abs(a.i-cidx)-Math.abs(b.i-cidx));rd.forEach(d=>order.push(d));}
-    const lit=Math.round(pct*dots.length);
-    order.forEach((d,j)=>{d.lit=j<lit;d.leading=(j===lit-1);});
-    const midY=topPad+neckIdx*rowGap, topY=topPad-12, botY=Hh-topPad+12;
-    const topW=148,neckW=30,lx=cx-topW/2,rx=cx+topW/2,nlx=cx-neckW/2,nrx=cx+neckW/2;
-    S.push(`<g transform="translate(${ox},${oy}) scale(${k})">`);
-    S.push(`<path d="M ${lx} ${topY} L ${nlx} ${midY} L ${lx} ${botY} L ${rx} ${botY} L ${nrx} ${midY} L ${rx} ${topY} Z" fill="rgba(54,64,74,.03)" stroke="rgba(54,64,74,.22)" stroke-width="1.4" stroke-linejoin="round"/>`);
-    S.push(`<line x1="${lx-6}" y1="${midY}" x2="${rx+6}" y2="${midY}" stroke="#79B591" stroke-width="1.5" stroke-dasharray="5 4" opacity=".9"/>`);
-    S.push(`<text x="${rx+9}" y="${midY+5}" font-size="12" fill="#5f9d77" font-weight="800" font-family="${SANS}">50%</text>`);
-    dots.forEach(d=>{
-      if(d.lit){
-        if(d.leading){S.push(`<circle cx="${d.x}" cy="${d.y}" r="${dotR+4}" fill="none" stroke="#F4A259" stroke-width="1.6" opacity=".45"/>`);S.push(`<circle cx="${d.x}" cy="${d.y}" r="${dotR+1}" fill="#F6B25E"/>`);}
-        else S.push(`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="#F4A259"/>`);
-      } else S.push(`<circle cx="${d.x}" cy="${d.y}" r="${dotR}" fill="none" stroke="rgba(54,64,74,.2)" stroke-width="1.3"/>`);
-    });
-    S.push(`</g>`);
+    const a=hourglassArt(pct);
+    S.push(`<g transform="translate(${ox},${oy}) scale(${k})">${a.inner}</g>`);
   }
   S.push(`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`);
   S.push(`<rect width="${W}" height="${H}" fill="${SKY}"/>`);
@@ -978,11 +974,11 @@ function buildSummarySVG(ins){
   // sunny-mood goal (recent 14 days) — stats left, hourglass right
   R(P,goalY,W-2*P,goalH);
   T(P+16,goalY+26,loc("Sunny-mood goal","晴れの気分の目標"),15,INK,"700");
-  T(P+16,goalY+46,loc("recent 14 days · aim for 50% sunny","直近14日 · 目標は晴れ50%"),11,SOFT);
-  const g=ins.sun14, gpct=Math.round(g.pct*100), reached=g.pct>=0.5;
+  T(P+16,goalY+46,loc("recent 14 days · aim for 65% sunny","直近14日 · 目標は晴れ65%"),11,SOFT);
+  const g=ins.sun14, gpct=Math.round(g.pct*100), reached=g.pct>=SUN_GOAL;
   T(P+24,goalY+94,gpct+"%",42,reached?GREEN:SUNNY,"700","start",SERIF);
   T(P+24,goalY+120,`${g.sunny} ${loc("of","/")} ${g.total} ${loc("mood slots sunny","スロットが晴れ")}`,12,SOFT);
-  T(P+24,goalY+144,reached?loc("Goal reached ✓","目標達成 ✓"):loc("Keep going — aim for 50%","あと少し — 目標は50%"),13,reached?GREEN:WARN,"700");
+  T(P+24,goalY+144,reached?loc("Goal reached ✓","目標達成 ✓"):loc("Keep going — aim for 65%","あと少し — 目標は65%"),13,reached?GREEN:WARN,"700");
   drawHourglass(P+525,goalY+24,0.46,g.pct);
   // mood over time
   R(P,moodY,W-2*P,moodH);
@@ -1007,7 +1003,7 @@ function buildSummarySVG(ins){
   [120,600].forEach(z=>{const yy=yT(z);S.push(`<line x1="${cL}" y1="${yy.toFixed(1)}" x2="${cR}" y2="${yy.toFixed(1)}" stroke="#79B591" stroke-dasharray="5 4" stroke-width="1.2" opacity="0.55"/>`);});
   const lw=Math.min(12,bw*0.5), rdot=Math.max(2.6,lw*0.34);
   win.forEach((e,i)=>{const cx=colX(i);
-    if(e.bed&&e.wake){const hh=sleepHours(e.bed,e.wake),yb=yT(sMin(e.bed)),yw=yT(sMin(e.wake)),col=hh<6.5?GREY:SUNNY,dc=hh<6.5?DOTG:DOTA;
+    if(e.bed&&e.wake){const yb=yT(sMin(e.bed)),yw=yT(sMin(e.wake)),st=sleepStatus(e),col=st==="ok"?SUNNY:GREY,dc=st==="ok"?DOTA:DOTG;
       S.push(`<line x1="${cx.toFixed(1)}" y1="${yb.toFixed(1)}" x2="${cx.toFixed(1)}" y2="${yw.toFixed(1)}" stroke="${col}" stroke-width="${lw.toFixed(1)}" stroke-linecap="round"/>`);
       S.push(`<circle cx="${cx.toFixed(1)}" cy="${yb.toFixed(1)}" r="${rdot.toFixed(1)}" fill="${dc}"/><circle cx="${cx.toFixed(1)}" cy="${yw.toFixed(1)}" r="${rdot.toFixed(1)}" fill="${dc}"/>`);}});
   dateRow(sleepY+sleepH-10);
@@ -1079,7 +1075,8 @@ function exportPDF(){
    (Project Settings → API: "Project URL" and "anon public" key)
    ============================================================ */
 const SUPABASE_URL = "https://fvukhnxxpnepqolxyigw.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_vXi71Von3iPqRUmRVFX-mw_WqyDX392";
+const SUPABASE_ANON_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE";
+const TEST_MODE = false;  // ⚠ TEST ONLY — true skips login and disables cloud sync. Must be false on GitHub.
 
 let sb=null, currentUser=null, authMode="signin", realtimeChan=null, applyingRemote=false;
 function configFilled(){return !/PASTE_YOUR/.test(SUPABASE_ANON_KEY);}
@@ -1171,6 +1168,8 @@ function subscribeRealtime(){
   }catch(e){}
 }
 async function initAuth(){
+  if(TEST_MODE){hideAuth();const el=document.getElementById("sync-status");
+    if(el){el.classList.add("err");el.textContent="TEST MODE — login & sync off";}return;}
   if(!configFilled()||typeof window.supabase==="undefined"){
     showAuth();setAuthErr(t("authNotConfigured"));
     const b=document.getElementById("auth-btn");if(b)b.disabled=true;return;}

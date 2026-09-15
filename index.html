@@ -153,6 +153,14 @@
   .ed-done{border:0; background:var(--ink); color:#fff}
   .legacy{display:flex; flex-wrap:wrap; gap:7px; align-items:center; margin-top:12px}
   #days-chart > svg{display:block; width:100%; height:auto; max-width:640px; margin:0 auto}
+  .bal{display:flex; align-items:center; justify-content:center; gap:22px; flex-wrap:wrap}
+  .bal svg{width:200px; height:200px; flex:0 0 auto}
+  .bal-list{display:flex; flex-direction:column; gap:9px; min-width:170px}
+  .bal-row{display:grid; grid-template-columns:14px 1fr auto auto; align-items:baseline; gap:8px; font-weight:700; font-size:.9rem}
+  .bal-row i{width:12px; height:12px; border-radius:3px; align-self:center}
+  .bal-h{font-family:var(--font-display); font-weight:600; font-size:1.15rem}
+  .bal-d{font-size:.78rem; color:var(--ink-soft); min-width:3.2em; text-align:right}
+  .bal-cap{font-size:.76rem; color:var(--ink-soft); font-weight:700; margin-top:2px}
   .days-legend{display:flex; flex-wrap:wrap; gap:6px 14px; justify-content:center; margin-top:10px; font-size:.74rem; font-weight:700; color:var(--ink-soft)}
   .days-legend span{display:inline-flex; align-items:center; gap:5px}
   .days-legend i{width:12px; height:12px; border-radius:3px; display:inline-block}
@@ -364,8 +372,11 @@
     #print-summary{display:block !important; margin:0; width:210mm; -webkit-print-color-adjust:exact; print-color-adjust:exact}
     #print-summary .pg{width:210mm; height:297mm; overflow:hidden; break-after:page; page-break-after:always}
     #print-summary .pg:last-child{break-after:auto; page-break-after:auto}
-    #print-summary svg{display:block; width:210mm; height:297mm; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    #print-summary .pg > svg{display:block; width:210mm; height:297mm; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    #print-summary .pg.land{page:land; width:297mm; height:210mm}
+    #print-summary .pg.land > svg{width:297mm; height:210mm}
   }
+  @page land{size:A4 landscape; margin:0}
 </style>
 </head>
 <body>
@@ -506,6 +517,7 @@
           <div class="chartbox"><div id="sleep-chart"></div></div>
         </div>
       </div>
+      <div class="chartbox" id="bal-box" style="margin-top:18px;display:none"><h3 data-i18n="balTitle">Daily balance</h3><div class="bal" id="bal-chart"></div></div>
       <div class="chartbox" id="days-box" style="margin-top:18px;display:none"><h3 data-i18n="daysTitle">Your days</h3><div id="days-chart"></div></div>
       <div class="empty" id="summary-empty" style="display:none" data-i18n="noData">No entries yet — save today's check-in to start your picture.</div>
     </div>
@@ -595,7 +607,7 @@ const I18N={
    activityLabel:"Activities — one per line, and how each went",addActivity:"Add activity",
    activityPh:"e.g. went for a walk",actNotePh:"Optional note — what made it go that way",
    evGood:"Went well",dayLabel:"Your day",dayNow:"Now I'm…",dayTapGap:"Tap to add what you did",dayUnlogged:"{h} unlogged",dayAllLogged:"All logged",
-   dayDone:"Done",dayRemove:"Remove",dayLabelPh:"What were you doing?",dayUntimed:"Untimed",daysTitle:"Your days",daysLegendHard:"hard",daysLegendGap:"not logged",
+   dayDone:"Done",dayRemove:"Remove",dayLabelPh:"What were you doing?",dayUntimed:"Untimed",daysTitle:"Your days",balTitle:"Daily balance",balAim:"aim 8 : 8 : 8",balDays:"avg of {n} days",balDay:"1 day",balSleep:"Sleep",balWork:"Work",balOther:"Others",balEmpty:"Log sleep times to see your balance.",daysLegendHard:"hard",daysLegendGap:"not logged",
    catNames:{work:"Work / study",move:"Move",social:"Social",home:"Home / self-care",rest:"Rest / screen"},catShort:{work:"Work",move:"Move",social:"Social",home:"Home",rest:"Rest"},
    blkTh:{date:"Date",start:"Start",end:"End",mins:"Minutes",cat:"Type",label:"What",how:"How it went",note:"Note"},blkSheet:"Activity blocks",evOk:"So-so",evHard:"Was hard",
    notesLabel:"Notes",notesPh:"Anything you want to remember about today…",
@@ -629,7 +641,7 @@ const I18N={
    activityLabel:"活動 — 1行に1つ、その手応えも",addActivity:"活動を追加",
    activityPh:"例：散歩した",actNotePh:"メモ（任意）— なぜそう感じたか",
    evGood:"うまくいった",dayLabel:"今日の過ごし方",dayNow:"いま…",dayTapGap:"タップして追加",dayUnlogged:"未記録 {h}",dayAllLogged:"すべて記録済み",
-   dayDone:"完了",dayRemove:"削除",dayLabelPh:"何をしていた？",dayUntimed:"時間なし",daysTitle:"毎日の過ごし方",daysLegendHard:"つらかった",daysLegendGap:"未記録",
+   dayDone:"完了",dayRemove:"削除",dayLabelPh:"何をしていた？",dayUntimed:"時間なし",daysTitle:"毎日の過ごし方",balTitle:"1日のバランス",balAim:"目標 8 : 8 : 8",balDays:"{n}日間の平均",balDay:"1日分",balSleep:"睡眠",balWork:"仕事",balOther:"その他",balEmpty:"睡眠時間を記録するとバランスが表示されます。",daysLegendHard:"つらかった",daysLegendGap:"未記録",
    catNames:{work:"仕事・勉強",move:"運動",social:"人と過ごす",home:"家事・セルフケア",rest:"休息・画面"},catShort:{work:"仕事",move:"運動",social:"人",home:"家事",rest:"休息"},
    blkTh:{date:"日付",start:"開始",end:"終了",mins:"分",cat:"種類",label:"内容",how:"手応え",note:"メモ"},blkSheet:"活動ブロック",evOk:"まあまあ",evHard:"つらかった",
    notesLabel:"メモ",notesPh:"今日のこと、覚えておきたいことを自由に…",
@@ -904,31 +916,51 @@ function blocksToText(e){const RL={good:t("evGood"),ok:t("evOk"),hard:t("evHard"
   return (e.blocks||[]).map(b=>`${hm(b.s)}–${hm(b.e)} ${catName(b.cat)||"?"}${b.text?": "+b.text:""}${b.rating?" ("+RL[b.rating]+")":""}${b.note?" — "+b.note:""}`);}
 
 /* ---------- R1: days side by side (shared by web summary + PDF page 2) ---------- */
-function dayRibbonsArt(dates,o){
-  const W=o.W,labW=o.labW,iconW=o.iconW,rowH=o.rowH,barH=o.barH,top=o.top,fs=o.fs,pid=o.pid;
-  const rows=dates.map(d=>{const e=entries[d]||{},bl=(e.blocks||[]).slice().sort((a,b)=>a.s-b.s);
-    const wake=tMin(e.wake),nb=nextBedFor(d);
-    const aS=wake??(bl.length?bl[0].s:null),aE=nb??(bl.length?bl[bl.length-1].e:null);
-    return {d,e,bl,aS,aE};});
+function dayRow(d){const e=entries[d]||{},bl=(e.blocks||[]).slice().sort((a,b)=>a.s-b.s);
+  const wake=tMin(e.wake),nb=nextBedFor(d);
+  return {d,e,bl,aS:wake??(bl.length?bl[0].s:null),aE:nb??(bl.length?bl[bl.length-1].e:null)};}
+function dayXRange(dates){const rows=dates.map(dayRow);
   const st=rows.map(r=>r.aS).filter(v=>v!=null),en=rows.map(r=>r.aE).filter(v=>v!=null);
   let x0=Math.floor(Math.min(...(st.length?st:[420]))/60)*60,x1=Math.ceil(Math.max(...(en.length?en:[1380]))/60)*60;
-  x0=Math.min(x0,420);x1=Math.min(Math.max(x1,x0+10*60),DAY_MAX);
-  const pL=labW,pR=W-iconW,pw=pR-pL,X=m=>pL+(Math.max(x0,Math.min(x1,m))-x0)/(x1-x0)*pw;
+  x0=Math.min(x0,420);x1=Math.min(Math.max(x1,x0+10*60),DAY_MAX);return [x0,x1];}
+const txtW=(str,fs)=>[...str].reduce((a,ch)=>a+(ch.charCodeAt(0)>0x2E7F?fs:fs*.56),0);
+function fitTxt(str,fs,maxW){if(txtW(str,fs)<=maxW)return str;const c=[...str];
+  while(c.length&&txtW(c.join("")+"…",fs)>maxW)c.pop();return c.length?c.join("")+"…":"";}
+const xmlEsc=v=>String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+function dayRibbonsArt(dates,o){
+  const W=o.W,labW=o.labW,iconW=o.iconW,rowH=o.rowH,barH=o.barH,top=o.top,fs=o.fs,pid=o.pid;
+  const det=!!o.detail,colW=det?o.colW:0,colsW=det?3*colW+22:0,step=o.step||180,lstep=o.labelStep||step;
+  const rows=dates.map(dayRow);
+  const [x0,x1]=o.range||dayXRange(dates);
+  const pL=labW,pR=W-iconW-colsW,pw=pR-pL,X=m=>pL+(Math.max(x0,Math.min(x1,m))-x0)/(x1-x0)*pw;
   const H=top+rows.length*rowH+6;
   let s=`<defs><pattern id="${pid}-hard" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.8" height="5" fill="#C2553C" opacity=".5"/></pattern></defs>`;
-  for(let m=Math.ceil(x0/180)*180;m<=x1;m+=180){const xx=X(m);
-    s+=`<line x1="${xx.toFixed(1)}" y1="${top-4}" x2="${xx.toFixed(1)}" y2="${H-4}" stroke="rgba(54,64,74,.07)"/><text x="${xx.toFixed(1)}" y="${top-8}" font-size="${fs*.9}" fill="#9aa0a6" text-anchor="middle">${hm(m)}</text>`;}
+  for(let m=Math.ceil(x0/step)*step;m<=x1;m+=step){const xx=X(m);
+    s+=`<line x1="${xx.toFixed(1)}" y1="${top-4}" x2="${xx.toFixed(1)}" y2="${H-4}" stroke="rgba(54,64,74,${m%lstep?.04:.08})"/>`;
+    if(m%lstep===0&&(!det||xx<pR-18))s+=`<text x="${xx.toFixed(1)}" y="${top-8}" font-size="${fs*.9}" fill="#9aa0a6" text-anchor="middle">${hm(m)}</text>`;}
+  const cx=k=>pR+22+colW*(k+.5),zones=o.zones||[];
+  zones.forEach(([a,b])=>{s+=`<rect x="${X(a).toFixed(1)}" y="${top-4}" width="${(X(b)-X(a)).toFixed(1)}" height="${H-top}" fill="${WZ_COL}" opacity=".07"/>`;});
+  if(det){BAL_KEYS.forEach((k,j)=>{s+=`<rect x="${(cx(j)-colW/2+3).toFixed(1)}" y="${top-8-fs*.95}" width="${colW-6}" height="${fs*1.35}" rx="${fs*.67}" fill="${BALCOL[k].bg}"/><text x="${cx(j).toFixed(1)}" y="${top-8}" font-size="${fs*.82}" fill="${BALCOL[k].ink}" font-weight="700" text-anchor="middle">${xmlEsc(t(BAL_LBL[k]))}</text>`;});
+    s+=`<line x1="${pR+11}" y1="${top-4}" x2="${pR+11}" y2="${H-4}" stroke="rgba(54,64,74,.10)"/>`;}
   const WD=lang==="ja"?["日","月","火","水","木","金","土"]:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   rows.forEach((r,i)=>{const y=top+i*rowH,cy=y+rowH/2,by=cy-barH/2,dt=new Date(r.d+"T00:00:00");
     s+=`<text x="0" y="${cy+fs*.35}" font-size="${fs}" fill="#6B7682" font-weight="700">${r.d.slice(5)}</text><text x="${fs*2.9}" y="${cy+fs*.35}" font-size="${fs*.85}" fill="#b3b8bd">${WD[dt.getDay()]}</text>`;
     if(r.aS!=null&&r.aE!=null&&r.aE>r.aS)s+=`<rect x="${X(r.aS).toFixed(1)}" y="${by}" width="${(X(r.aE)-X(r.aS)).toFixed(1)}" height="${barH}" rx="${barH/3}" fill="#EEF1F3"/>`;
     r.bl.forEach(b=>{const bx=X(b.s),bw=Math.max(1.5,X(b.e)-bx),k=b.cat?CATCOL[b.cat]:{bg:"#FFFFFF"};
       s+=`<rect x="${bx.toFixed(1)}" y="${by}" width="${bw.toFixed(1)}" height="${barH}" fill="${k.bg}"${b.cat?"":` stroke="#9aa0a6" stroke-dasharray="2 2"`}/>`;
-      if(b.rating==="hard")s+=`<rect x="${bx.toFixed(1)}" y="${by}" width="${bw.toFixed(1)}" height="${barH}" fill="url(#${pid}-hard)"/>`;});
+      if(b.rating==="hard")s+=`<rect x="${bx.toFixed(1)}" y="${by}" width="${bw.toFixed(1)}" height="${barH}" fill="url(#${pid}-hard)"/>`;
+      if(det&&bw>=20){const ink=b.cat?CATCOL[b.cat].ink:"#6B7682",tx=(bx+bw/2).toFixed(1),room=bw-6,f1=fs*.86,f2=fs*.74;
+        const nm=fitTxt(b.text||(b.cat?catShort(b.cat):"?"),f1,room),du=fitTxt(durTxt(b.e-b.s),f2,room);
+        if(barH>=22&&nm&&du){s+=`<text x="${tx}" y="${(by+barH*.45).toFixed(1)}" font-size="${f1}" fill="${ink}" font-weight="700" text-anchor="middle">${xmlEsc(nm)}</text><text x="${tx}" y="${(by+barH*.83).toFixed(1)}" font-size="${f2}" fill="${ink}" opacity=".8" text-anchor="middle">${xmlEsc(du)}</text>`;}
+        else if(nm)s+=`<text x="${tx}" y="${(by+barH/2+f1*.35).toFixed(1)}" font-size="${f1}" fill="${ink}" font-weight="700" text-anchor="middle">${xmlEsc(nm)}</text>`;}});
+    if(det){const bal=dayBalance(r.d);BAL_KEYS.forEach((k,j)=>{const v=bal?bal[k]:(k==="work"&&r.bl.length?workHours(r.e):null);
+      s+=`<text x="${cx(j).toFixed(1)}" y="${(cy+fs*.38).toFixed(1)}" font-size="${fs}" fill="${v==null?"#C3C8CD":"#36404A"}" font-weight="700" text-anchor="middle">${v==null?"–":fmtH(v)}</text>`;});}
     const w=r.e.night||r.e.pm||r.e.am,isz=Math.min(rowH-4,fs*1.8);
-    if(w)s+=wIcon(w,WCOLORS[w]).replace("<svg ",`<svg x="${(pR+iconW/2-isz/2+2).toFixed(1)}" y="${(cy-isz/2).toFixed(1)}" width="${isz}" height="${isz}" `);
+    if(w)s+=wIcon(w,WCOLORS[w]).replace("<svg ",`<svg x="${(W-iconW/2-isz/2+2).toFixed(1)}" y="${(cy-isz/2).toFixed(1)}" width="${isz}" height="${isz}" `);
     if(r.e.anx||r.e.low||r.e.dark)s+=`<circle cx="${(W-3).toFixed(1)}" cy="${(cy-isz/2+2).toFixed(1)}" r="3" fill="#D9655F"/>`;});
-  return {inner:s,H};
+  zones.forEach(z=>z.forEach(m=>{const xx=X(m).toFixed(1);
+    s+=`<line x1="${xx}" y1="${top-4}" x2="${xx}" y2="${H-4}" stroke="${WZ_COL}" stroke-width="1.4" stroke-dasharray="5 4" opacity=".8"/>`;}));
+  return {inner:s,H,colX:cx,pR};
 }
 function dayLegendHTML(){
   return `<div class="days-legend">${CATS.map(c=>`<span><i style="background:${CATCOL[c].bg}"></i>${catName(c)}</span>`).join("")}
@@ -942,26 +974,82 @@ function renderDays(){
   const a=dayRibbonsArt(days,{W:380,labW:62,iconW:26,rowH:25,barH:14,top:18,fs:10,pid:"dr-web"});
   host.innerHTML=`<svg viewBox="0 0 380 ${a.H}" font-family="Nunito,sans-serif" aria-label="Activities by day">${a.inner}</svg>`+dayLegendHTML();
 }
-function buildDaysPageSVG(ins){
-  const W=820,H=1160,P=28,SERIF="Fraunces, Georgia, serif",SANS="Nunito, Helvetica, Arial, sans-serif";
-  const dates=ins.win.map(e=>e.date),n=dates.length||1;
-  const top=150,avail=H-top-150,rowH=Math.min(40,avail/n);
-  const a=dayRibbonsArt(dates,{W:W-2*P-32,labW:78,iconW:34,rowH,barH:Math.min(20,rowH*.55),top:22,fs:12,pid:"dr-pdf"});
-  const cardH=a.H+24;
-  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="#F7FAFC"/>`;
-  s+=`<text x="${P}" y="54" font-size="28" fill="#36404A" font-weight="600" font-family="${SERIF}">${loc("Your days","毎日の過ごし方")}</text>`;
-  s+=`<text x="${P}" y="80" font-size="13" fill="#6B7682" font-family="${SANS}">${loc("Each row runs from waking up to going to sleep · colour shows what filled the time","各行は起床から就寝まで · 色は過ごし方")}</text>`;
-  s+=`<defs><pattern id="lg-pdf" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.8" height="5" fill="#C2553C" opacity=".5"/></pattern></defs>`;
-  const cw=ch=>ch.length*(lang==="ja"?12.5:7.2);
-  const lg=CATS.map(c=>["sq",CATCOL[c].bg,catName(c)]).concat([["sq","#EEF1F3",t("daysLegendGap")],["hard","",t("daysLegendHard")],["dot","#D9655F",loc("care flag","ケアの記録")]]);
-  let lx=P,ly=100;lg.forEach(([k,c,nm])=>{const w=24+cw(nm)+18;if(lx+w>W-P){lx=P;ly+=22;}
-    if(k==="dot")s+=`<circle cx="${lx+7}" cy="${ly+7}" r="4.5" fill="${c}"/>`;
-    else s+=`<rect x="${lx}" y="${ly}" width="14" height="14" rx="3" fill="${k==="hard"?"#EEF1F3":c}"/>`+(k==="hard"?`<rect x="${lx}" y="${ly}" width="14" height="14" rx="3" fill="url(#lg-pdf)"/>`:"");
-    s+=`<text x="${lx+20}" y="${ly+12}" font-size="12" fill="#6B7682" font-family="${SANS}">${nm}</text>`;lx+=w;});
-  s+=`<rect x="${P}" y="${top}" width="${W-2*P}" height="${cardH}" rx="16" fill="#FFFFFF" stroke="#E7ECF1"/>`;
-  s+=`<g transform="translate(${P+16},${top+10})" font-family="${SANS}">${a.inner}</g>`;
-  s+=`<text x="${P}" y="${H-22}" font-size="11" fill="#6B7682" font-family="${SANS}">${loc("Generated from your private journal · for personal and medical review","あなたの記録から作成 · 個人および医療の確認用")}</text></svg>`;
-  return {svg:s,w:W,h:H};
+const DAYS_PER_PAGE=15;
+function buildDaysPagesSVG(ins){
+  const W=1160,H=820,P=28,SERIF="Fraunces, Georgia, serif",SANS="Nunito, Helvetica, Arial, sans-serif";   // A4 landscape
+  const all=ins.win.map(e=>e.date),range=dayXRange(all),pages=[];
+  const nPg=Math.max(1,Math.ceil(all.length/DAYS_PER_PAGE));
+  for(let pg=0;pg<nPg;pg++){
+    const dates=all.slice(pg*DAYS_PER_PAGE,(pg+1)*DAYS_PER_PAGE),top=118,rowH=38;
+    const a=dayRibbonsArt(dates,{W:W-2*P-32,labW:78,iconW:34,colW:62,rowH,barH:26,top:24,fs:12,pid:"dr-pdf"+pg,detail:true,range,step:60,labelStep:120,zones:WORK_ZONES});
+    const avgY=a.H+14,cardH=avgY+34;
+    let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="#F7FAFC"/>`;
+    s+=`<text x="${P}" y="50" font-size="26" fill="#36404A" font-weight="600" font-family="${SERIF}">${loc("Your days","毎日の過ごし方")}</text>`;
+    const d0=dates[0]||"",d1=dates[dates.length-1]||"";
+    s+=`<text x="${W-P}" y="50" font-size="13" fill="#6B7682" text-anchor="end" font-family="${SANS}">${d0} → ${d1}${nPg>1?` · ${pg+1}/${nPg}`:""}</text>`;
+    s+=`<text x="${P}" y="74" font-size="12.5" fill="#6B7682" font-family="${SANS}">${loc("Each row runs from waking up to going to sleep · hours per day on the right (aim 8 : 8 : 8)","各行は起床から就寝まで · 右は1日の時間（目標 8 : 8 : 8）")}</text>`;
+    s+=`<defs><pattern id="lg-pdf${pg}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.8" height="5" fill="#C2553C" opacity=".5"/></pattern></defs>`;
+    const lg=CATS.map(c=>["sq",CATCOL[c].bg,catName(c)]).concat([["sq","#EEF1F3",t("daysLegendGap")],["hard","",t("daysLegendHard")],["dot","#D9655F",loc("care flag","ケアの記録")],["wz","",loc("work hours 9–12 · 13–18","勤務時間 9–12 · 13–18")]]);
+    let lx=P;const ly=88;lg.forEach(([k,c,nm])=>{
+      if(k==="dot")s+=`<circle cx="${lx+7}" cy="${ly+7}" r="4.5" fill="${c}"/>`;
+      else if(k==="wz")s+=`<rect x="${lx}" y="${ly}" width="14" height="14" fill="${WZ_COL}" opacity=".1"/><line x1="${lx+1}" y1="${ly}" x2="${lx+1}" y2="${ly+14}" stroke="${WZ_COL}" stroke-width="1.4" stroke-dasharray="3 2"/><line x1="${lx+13}" y1="${ly}" x2="${lx+13}" y2="${ly+14}" stroke="${WZ_COL}" stroke-width="1.4" stroke-dasharray="3 2"/>`;
+      else s+=`<rect x="${lx}" y="${ly}" width="14" height="14" rx="3" fill="${k==="hard"?"#EEF1F3":c}"/>`+(k==="hard"?`<rect x="${lx}" y="${ly}" width="14" height="14" rx="3" fill="url(#lg-pdf${pg})"/>`:"");
+      s+=`<text x="${lx+20}" y="${ly+12}" font-size="12" fill="#6B7682" font-family="${SANS}">${xmlEsc(nm)}</text>`;lx+=20+txtW(nm,12)+22;});
+    s+=`<rect x="${P}" y="${top}" width="${W-2*P}" height="${cardH}" rx="16" fill="#FFFFFF" stroke="#E7ECF1"/>`;
+    const ox=P+16,oy=top+10;
+    s+=`<g transform="translate(${ox},${oy})" font-family="${SANS}">${a.inner}`;
+    const bs=balanceStats(dates);
+    s+=`<line x1="0" y1="${avgY-12}" x2="${W-2*P-32}" y2="${avgY-12}" stroke="#E7ECF1"/>`;
+    s+=`<text x="0" y="${avgY+6}" font-size="12" fill="#6B7682" font-weight="700">${loc("Average","平均")}</text>`;
+    if(bs)s+=`<text x="${a.pR-4}" y="${avgY+6}" font-size="11" fill="#9aa0a6" text-anchor="end">${xmlEsc(t("balDays").replace("{n}",bs.n))}</text>`;
+    BAL_KEYS.forEach((k,j)=>{s+=`<text x="${a.colX(j).toFixed(1)}" y="${avgY+7}" font-size="14" fill="${bs?BALCOL[k].ink:"#C3C8CD"}" font-weight="800" text-anchor="middle">${bs?fmtH(bs[k]):"–"}</text>`;});
+    s+=`</g>`;
+    s+=`<text x="${P}" y="${H-20}" font-size="11" fill="#6B7682" font-family="${SANS}">${loc("Generated from your private journal · for personal and medical review","あなたの記録から作成 · 個人および医療の確認用")}</text></svg>`;
+    pages.push({svg:s,w:W,h:H});
+  }
+  return pages;
+}
+/* browsers without per-page orientation (e.g. some Safari versions) get the landscape page turned onto a portrait sheet */
+const canNamedPages=()=>!!(window.CSS&&CSS.supports&&CSS.supports("page","land"));
+function portraitWrap(pg){return `<svg width="${pg.h}" height="${pg.w}" viewBox="0 0 ${pg.h} ${pg.w}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${pg.h},0) rotate(90)">${pg.svg}</g></svg>`;}
+
+/* ---------- daily balance: sleep / work / others, aim 8 : 8 : 8 ---------- */
+const BAL_KEYS=["sleep","work","other"], BAL_AIM=8;
+const WORK_ZONES=[[540,720],[780,1080]];   // 09:00–12:00, 13:00–18:00 (minutes from 00:00)
+const WZ_COL="#4F93B5";
+const BAL_LBL={sleep:"balSleep",work:"balWork",other:"balOther"};
+const BALCOL={sleep:{bg:"#BFC5CC",ink:"#4B535C"},work:{bg:"#9CCBE0",ink:"#1F4E63"},other:{bg:"#A9D5B8",ink:"#2F5E43"}};
+const fmtH=v=>(Math.round(v*10)/10).toFixed(1);
+function workHours(e){return (e.blocks||[]).reduce((a,b)=>a+(b.cat==="work"?Math.max(0,b.e-b.s):0),0)/60;}
+/* one day = the sleep that ended that morning + that day's work blocks; the rest of 24h is "others" */
+function dayBalance(d){const e=entries[d];if(!e)return null;const sl=sleepHours(e.bed,e.wake);if(sl==null)return null;
+  const wk=Math.min(24-sl,workHours(e));return {sleep:sl,work:wk,other:Math.max(0,24-sl-wk)};}
+function balanceStats(dates){const ds=dates.map(dayBalance).filter(Boolean);if(!ds.length)return null;
+  const o={n:ds.length};BAL_KEYS.forEach(k=>o[k]=ds.reduce((a,x)=>a+x[k],0)/ds.length);return o;}
+function balanceArt(bs,R){
+  const C=R+14,arc=(r,a0,a1)=>{const p=a=>[C+r*Math.sin(a),C-r*Math.cos(a)];const[x0,y0]=p(a0),[x1,y1]=p(a1);
+    return `M${C} ${C}L${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${a1-a0>Math.PI?1:0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}Z`;};
+  const ring=(r,a0,a1)=>{const p=a=>[C+r*Math.sin(a),C-r*Math.cos(a)];const[x0,y0]=p(a0),[x1,y1]=p(a1);
+    return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;};
+  let s="",a=0;const TAU=Math.PI*2,g=0.05;
+  BAL_KEYS.forEach((k,j)=>{s+=`<path d="${ring(R+8,j*TAU/3+g,(j+1)*TAU/3-g)}" fill="none" stroke="${BALCOL[k].bg}" stroke-width="4" stroke-linecap="round"/>`;});
+  const tot=BAL_KEYS.reduce((x,k)=>x+bs[k],0)||1;
+  BAL_KEYS.forEach(k=>{const sw=bs[k]/tot*TAU;if(sw<=0)return;
+    s+=sw>=TAU-1e-6?`<circle cx="${C}" cy="${C}" r="${R}" fill="${BALCOL[k].bg}"/>`:`<path d="${arc(R,a,a+sw)}" fill="${BALCOL[k].bg}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>`;
+    if(sw>0.42){const m=a+sw/2;s+=`<text x="${(C+R*.6*Math.sin(m)).toFixed(1)}" y="${(C-R*.6*Math.cos(m)+5).toFixed(1)}" font-size="${R*.17}" font-weight="800" fill="${BALCOL[k].ink}" text-anchor="middle">${fmtH(bs[k])}h</text>`;}
+    a+=sw;});
+  return {inner:s,S:2*C};
+}
+function renderBalance(){
+  const box=document.getElementById("bal-box"),host=document.getElementById("bal-chart");if(!box||!host)return;
+  const bs=balanceStats(rangeDates());
+  box.style.display=rangeDates().length?"":"none";
+  if(!bs){host.innerHTML=`<div class="bal-cap">${t("balEmpty")}</div>`;return;}
+  const art=balanceArt(bs,86);
+  const d=v=>{const x=Math.round((v-BAL_AIM)*10)/10;return x===0?"±0":(x>0?"+":"−")+Math.abs(x).toFixed(1);};
+  host.innerHTML=`<svg viewBox="0 0 ${art.S} ${art.S}" font-family="Nunito,sans-serif" role="img" aria-label="${t("balTitle")}">${art.inner}</svg>
+    <div class="bal-list">${BAL_KEYS.map(k=>`<div class="bal-row"><i style="background:${BALCOL[k].bg}"></i><span>${t(BAL_LBL[k])}</span><span class="bal-h">${fmtH(bs[k])}h</span><span class="bal-d">${d(bs[k])}</span></div>`).join("")}
+      <div class="bal-cap">${t("balAim")} · ${bs.n===1?t("balDay"):t("balDays").replace("{n}",bs.n)}</div></div>`;
 }
 
 
@@ -1203,9 +1291,10 @@ function renderSummary(){
   document.getElementById("summary-empty").style.display=has?"none":"block";
   document.getElementById("face-week").style.display=has?"block":"none";
   if(document.getElementById("rib"))layoutRibbon();       // tomorrow's bedtime closes today's ribbon
-  if(!has){document.getElementById("days-box").style.display="none";return;}
+  if(!has){document.getElementById("days-box").style.display="none";document.getElementById("bal-box").style.display="none";return;}
   renderWeekWeather();
   renderSleep();
+  renderBalance();
   renderDays();
 }
 
@@ -1315,7 +1404,7 @@ function buildSummarySVG(ins){
   T(P+16,sleepY+44,`${loc("avg","\u5e73\u5747")} ${ins.avgSleep}h \u00b7 ${loc("target 6.5\u20138h","\u76ee\u6a19 6.5\u20138h")} \u00b7 ${ins.shortNights} ${loc("nights under 6.5h","\u665a 6.5h\u672a\u6e80")}`,11,SOFT);
   S.push(`<circle cx="${W-P-150}" cy="${sleepY+22}" r="4" fill="${DOTG}"/>`);T(W-P-142,sleepY+26,loc("sleep","\u5c31\u5bdd"),10,SOFT);
   S.push(`<circle cx="${W-P-92}" cy="${sleepY+22}" r="4" fill="${DOTG}"/>`);T(W-P-84,sleepY+26,loc("wake","\u8d77\u5e8a"),10,SOFT);
-  const sOrig=21, sSpan=840, plotTop=sleepY+62, plotBot=sleepY+sleepH-30, plotH=plotBot-plotTop;
+  const sOrig=21, sSpan=900, plotTop=sleepY+62, plotBot=sleepY+sleepH-30, plotH=plotBot-plotTop;
   const sMin=tt=>{const[h,m]=tt.split(":").map(Number);return ((h-sOrig+24)%24)*60+m;};
   const yT=mm=>plotTop+(Math.max(0,Math.min(sSpan,mm))/sSpan)*plotH;
   for(let m=0;m<=sSpan;m+=60){const yy=yT(m);const hh=((sOrig+m/60)%24);
@@ -1381,8 +1470,10 @@ async function exportExcel(){
   const ws2=wb.addWorksheet(loc("Summary","まとめ")),ins=computeInsights(SUMMARY_WINDOW),SV=buildSummarySVG(ins);
   try{const png=await svgToPng(SV.svg,SV.w,SV.h),id=wb.addImage({base64:png.split(",")[1],extension:"png"});ws2.addImage(id,{tl:{col:0,row:0},ext:{width:SV.w,height:SV.h}});}
   catch(e){ws2.getCell("A1").value=loc("Summary image could not be generated.","まとめ画像を生成できませんでした。");}
-  if(ins.win.some(e=>(e.blocks||[]).length)){const DP=buildDaysPageSVG(ins);
-    try{const png2=await svgToPng(DP.svg,DP.w,DP.h),id2=wb.addImage({base64:png2.split(",")[1],extension:"png"});ws2.addImage(id2,{tl:{col:0,row:Math.ceil(SV.h/20)+2},ext:{width:DP.w,height:DP.h}});}catch(e){}}
+  if(ins.win.some(e=>(e.blocks||[]).length)){let row=Math.ceil(SV.h/20)+2;
+    for(const DP of buildDaysPagesSVG(ins)){
+      try{const png2=await svgToPng(DP.svg,DP.w,DP.h),id2=wb.addImage({base64:png2.split(",")[1],extension:"png"});ws2.addImage(id2,{tl:{col:0,row},ext:{width:DP.w,height:DP.h}});}catch(e){}
+      row+=Math.ceil(DP.h/20)+2;}}
   const BT=I18N[lang].blkTh,RL={good:t("evGood"),ok:t("evOk"),hard:t("evHard")},ws3=wb.addWorksheet(t("blkSheet"));
   ws3.addRow([BT.date,BT.start,BT.end,BT.mins,BT.cat,BT.label,BT.how,BT.note]);
   sortedDates().forEach(d=>(entries[d].blocks||[]).forEach(b=>ws3.addRow([d,hm(b.s),hm(b.e),b.e-b.s,catName(b.cat),b.text||"",b.rating?RL[b.rating]:"",b.note||""])));
@@ -1396,7 +1487,9 @@ function exportPDF(){
   if(!ins.win.length){alert(t("noData"));return;}
   const SV=buildSummarySVG(ins);
   const hasBlocks=ins.win.some(e=>(e.blocks||[]).length);
-  document.getElementById("print-summary").innerHTML=`<div class="pg">${SV.svg}</div>`+(hasBlocks?`<div class="pg">${buildDaysPageSVG(ins).svg}</div>`:"");
+  const land=canNamedPages();
+  const dp=hasBlocks?buildDaysPagesSVG(ins).map(pg=>land?`<div class="pg land">${pg.svg}</div>`:`<div class="pg">${portraitWrap(pg)}</div>`).join(""):"";
+  document.getElementById("print-summary").innerHTML=`<div class="pg">${SV.svg}</div>`+dp;
   setTimeout(()=>window.print(),150);
 }
 
